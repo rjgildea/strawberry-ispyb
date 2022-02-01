@@ -1,4 +1,4 @@
-from typing import List
+from __future__ import annotations
 
 import strawberry
 from main import models
