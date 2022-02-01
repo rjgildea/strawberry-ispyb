@@ -18,6 +18,7 @@ from ispyb.sqlalchemy import (
     Proposal,
     Protein,
 )
+from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 logger = logging.getLogger(__name__)
@@ -33,78 +34,81 @@ def proposal_code_and_number_from_name(name: str) -> tuple[str, int]:
 
 
 def get_proposal(db: Session, name: str) -> Proposal:
+    print(f"Getting proposal {name}")
     code, number = proposal_code_and_number_from_name(name)
-    query = (
-        db.query(Proposal)
+    stmt = (
+        select(Proposal)
         .filter(Proposal.proposalCode == code)
         .filter(Proposal.proposalNumber == number)
     )
-    return query.one()
+    return db.execute(stmt).scalar_one()
 
 
 def get_data_collections_for_proposal(
     db: Session, proposal_id: int
 ) -> typing.List[DataCollection]:
-    query = (
-        db.query(DataCollection)
+    print(f"Getting data collections for {proposal_id=}")
+    stmt = (
+        select(DataCollection)
         .join(BLSession, DataCollection.SESSIONID == BLSession.sessionId)
         .filter(BLSession.proposalId == proposal_id)
     )
-    return query.all()
+    return db.execute(stmt).scalars().all()
 
 
 def get_sample(db: Session, sample_id: int) -> BLSample:
-    query = db.query(BLSample).filter(BLSample.blSampleId == sample_id)
-    return query.one()
+    print(f"Getting {sample_id=}")
+    stmt = select(BLSample).filter(BLSample.blSampleId == sample_id)
+    return db.execute(stmt).scalar_one()
 
 
 def get_data_collections_for_sample(
     db: Session, sample_id: int
 ) -> typing.List[DataCollection]:
     print(f"Getting data collections for {sample_id=}")
-    query = (
-        db.query(DataCollection)
+    stmt = (
+        select(DataCollection)
         .join(BLSample, DataCollection.BLSAMPLEID == BLSample.blSampleId)
         .filter(BLSample.blSampleId == sample_id)
     )
-    return query.all()
+    return db.execute(stmt).scalars().all()
 
 
 def get_data_collections_for_samples(
     db: Session, sample_ids: typing.List[int]
 ) -> typing.List[typing.List[DataCollection]]:
     print(f"Getting data collections for {sample_ids=}")
-    query = (
-        db.query(DataCollection)
+    stmt = (
+        select(DataCollection)
         .join(BLSample, DataCollection.BLSAMPLEID == BLSample.blSampleId)
         .filter(BLSample.blSampleId.in_(sample_ids))
     )
-    results = query.all()
+    results = db.execute(stmt).all()
     grouped = {
         k: list(g) for k, g in itertools.groupby(results, lambda g: g.BLSAMPLEID)
     }
     return [[dc for dc in grouped[sid]] if sid in grouped else [] for sid in sample_ids]
-    return query.all()
 
 
 def get_samples_for_proposal(db: Session, proposal_id: int) -> typing.List[BLSample]:
-    query = (
-        db.query(BLSample)
+    print(f"Getting samples for {proposal_id=}")
+    stmt = (
+        select(BLSample)
         .join(Crystal, Crystal.crystalId == BLSample.crystalId)
         .join(Protein, Protein.proteinId == Crystal.proteinId)
         .join(Container, Container.containerId == BLSample.containerId)
         .join(Proposal, Proposal.proposalId == Protein.proposalId)
         .filter(Proposal.proposalId == proposal_id)
     )
-    return query.all()
+    return db.execute(stmt).scalars().all()
 
 
 def get_auto_proc_for_data_collection(
     db: Session, dcid: int
 ) -> typing.List[AutoProcIntegration]:
     print(f"Getting autoprocessings for dcid: {dcid}")
-    query = (
-        db.query(AutoProc)
+    stmt = (
+        select(AutoProc)
         .join(
             AutoProcProgram,
             AutoProcProgram.autoProcProgramId == AutoProc.autoProcProgramId,
@@ -119,15 +123,15 @@ def get_auto_proc_for_data_collection(
         )
         .filter(DataCollection.dataCollectionId == dcid)
     )
-    return query.all()
+    return db.execute(stmt).scalars().all()
 
 
 def get_auto_procs_for_data_collections(
     db: Session, dcids: List[dcid]
 ) -> typing.List[typing.List[AutoProcIntegration]]:
     print(f"Getting autoprocessings for dcids: {dcids}")
-    query = (
-        db.query(DataCollection.dataCollectionId, AutoProc)
+    stmt = (
+        select(DataCollection.dataCollectionId, AutoProc)
         .join(
             AutoProcProgram,
             AutoProcProgram.autoProcProgramId == AutoProc.autoProcProgramId,
@@ -142,7 +146,7 @@ def get_auto_procs_for_data_collections(
         )
         .filter(DataCollection.dataCollectionId.in_(dcids))
     )
-    results = query.all()
+    results = db.execute(stmt).all()
     grouped = {
         k: list(g) for k, g in itertools.groupby(results, lambda g: g.dataCollectionId)
     }
