@@ -3,10 +3,9 @@ import os
 
 import ispyb.sqlalchemy
 from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.ext.asyncio import create_async_engine
 
 def get_database_url(connector: str = "mysqlconnector"):
     credentials = os.getenv("ISPYB_CREDENTIALS")

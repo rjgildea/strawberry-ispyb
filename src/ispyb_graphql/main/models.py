@@ -4,7 +4,6 @@ import itertools
 import logging
 import operator
 import re
-import typing
 
 from ispyb.sqlalchemy import (
     AutoProc,
@@ -47,7 +46,7 @@ async def get_proposal(db: Session, name: str) -> Proposal:
 
 async def get_data_collections_for_proposal(
     db: Session, proposal_id: int
-) -> typing.List[DataCollection]:
+) -> list[DataCollection]:
     print(f"Getting data collections for {proposal_id=}")
     stmt = (
         select(DataCollection)
@@ -65,9 +64,16 @@ async def get_sample(db: Session, sample_id: int) -> BLSample:
     return result.scalar_one()
 
 
+async def get_samples(db: Session, sample_ids: list[int]) -> list[BLSample]:
+    print(f"Getting {sample_ids=}")
+    stmt = select(BLSample).filter(BLSample.blSampleId.in_(sample_ids))
+    result = await db.execute(stmt)
+    return result.scalars().all()
+
+
 async def get_data_collections_for_samples(
-    db: Session, sample_ids: typing.List[int]
-) -> typing.List[typing.List[DataCollection]]:
+    db: Session, sample_ids: list[int]
+) -> list[list[DataCollection]]:
     print(f"Getting data collections for {sample_ids=}")
     stmt = (
         select(DataCollection)
@@ -76,12 +82,13 @@ async def get_data_collections_for_samples(
     )
     results = await db.execute(stmt)
     grouped = {
-        k: list(g) for k, g in itertools.groupby(results.scalars().all(), lambda g: g.BLSAMPLEID)
+        k: list(g)
+        for k, g in itertools.groupby(results.scalars().all(), lambda g: g.BLSAMPLEID)
     }
     return [[dc for dc in grouped[sid]] if sid in grouped else [] for sid in sample_ids]
 
 
-async def get_samples_for_proposal(db: Session, proposal_id: int) -> typing.List[BLSample]:
+async def get_samples_for_proposal(db: Session, proposal_id: int) -> list[BLSample]:
     print(f"Getting samples for {proposal_id=}")
     stmt = (
         select(BLSample)
@@ -96,8 +103,8 @@ async def get_samples_for_proposal(db: Session, proposal_id: int) -> typing.List
 
 
 async def get_auto_procs_for_data_collections(
-    db: Session, dcids: List[dcid]
-) -> typing.List[typing.List[AutoProcIntegration]]:
+    db: Session, dcids: list[dcid]
+) -> list[list[AutoProcIntegration]]:
     print(f"Getting autoprocessings for dcids: {dcids}")
     stmt = (
         select(DataCollection.dataCollectionId, AutoProc)
@@ -117,7 +124,8 @@ async def get_auto_procs_for_data_collections(
     )
     results = await db.execute(stmt)
     grouped = {
-        k: list(g) for k, g in itertools.groupby(results.all(), lambda g: g.dataCollectionId)
+        k: list(g)
+        for k, g in itertools.groupby(results.all(), lambda g: g.dataCollectionId)
     }
     return [
         [result.AutoProc for result in grouped[dcid]] if dcid in grouped else []

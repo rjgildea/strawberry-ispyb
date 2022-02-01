@@ -5,9 +5,8 @@ import pathlib
 import typing
 
 import strawberry
-from sqlalchemy.orm import Session
-
 from main import models
+from sqlalchemy.orm import Session
 
 Path = strawberry.scalar(
     typing.NewType("Path", str),
@@ -66,6 +65,13 @@ async def load_data_collections_for_samples(
     ]
 
 
+async def load_samples(
+    db: Session, sample_ids: typing.List[strawberry.ID]
+) -> typing.List[typing.List["Samples"]]:
+    samples = await models.get_samples(db, sample_ids)
+    return [Sample.from_instance(sample) for sample in samples]
+
+
 @strawberry.type
 class DataCollection:
     dcid: int
@@ -91,8 +97,7 @@ class DataCollection:
     async def sample(self, info) -> typing.Optional["Sample"]:
         if self.sample_id is not None:
             db = info.context["db"]
-            sample = await models.get_sample(db, self.sample_id)
-            return Sample.from_instance(sample)
+            return await info.context["sample_loader"].load(self.sample_id)
 
 
 @strawberry.type
@@ -106,21 +111,17 @@ class Proposal:
     async def data_collections(self, info) -> typing.List[DataCollection]:
         proposal: Proposal = self.instance
         db = info.context["db"]
-        data_collections = await models.get_data_collections_for_proposal(db, proposal.proposalId)
-        return [
-            DataCollection.from_instance(dc)
-            for dc in data_collections
-        ]
+        data_collections = await models.get_data_collections_for_proposal(
+            db, proposal.proposalId
+        )
+        return [DataCollection.from_instance(dc) for dc in data_collections]
 
     @strawberry.field
     async def samples(self, info) -> typing.List["Sample"]:
         proposal: Proposal = self.instance
         db = info.context["db"]
         samples = await models.get_samples_for_proposal(db, proposal.proposalId)
-        return [
-            Sample.from_instance(sample)
-            for sample in samples
-        ]
+        return [Sample.from_instance(sample) for sample in samples]
 
     @classmethod
     def from_instance(cls, instance: models.Proposal):
