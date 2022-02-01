@@ -22,7 +22,8 @@ class Query:
     @strawberry.field
     async def proposal(self, info, name: strawberry.ID) -> Proposal:
         db = info.context["db"]
-        return Proposal.from_instance(models.get_proposal(db, name=name))
+        proposal = await models.get_proposal(db, name=name)
+        return Proposal.from_instance(proposal)
 
 
 schema = strawberry.Schema(Query, extensions=[SQLAlchemySession])

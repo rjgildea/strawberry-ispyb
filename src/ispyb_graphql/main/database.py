@@ -5,21 +5,24 @@ import ispyb.sqlalchemy
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import create_async_engine
 
-def get_database_url():
+def get_database_url(connector: str = "mysqlconnector"):
     credentials = os.getenv("ISPYB_CREDENTIALS")
     config = configparser.RawConfigParser(allow_no_value=True)
     if not config.read(credentials):
         raise AttributeError(f"No configuration found at {credentials}")
     credentials = dict(config.items("ispyb_sqlalchemy"))
     return (
-        "mysql+mysqlconnector://{username}:{password}@{host}:{port}/{database}".format(
+        f"mysql+{connector}"
+        "://{username}:{password}@{host}:{port}/{database}".format(
             **credentials,
         )
     )
 
 
-SQLALCHEMY_DATABASE_URL = get_database_url()
+SQLALCHEMY_DATABASE_URL = get_database_url(connector="asyncmy")
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"use_pure": True}, future=True)
-SessionLocal = sessionmaker(engine)
+engine = create_async_engine(SQLALCHEMY_DATABASE_URL, future=True)
+SessionLocal = sessionmaker(engine, class_=AsyncSession)

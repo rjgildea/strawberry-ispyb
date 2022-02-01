@@ -49,18 +49,20 @@ class AutoProc:
 async def load_auto_processings(
     db: Session, dcids: typing.List[strawberry.ID]
 ) -> typing.List[typing.List[AutoProc]]:
+    result = await models.get_auto_procs_for_data_collections(db, dcids)
     return [
         [AutoProc.from_instance(ap) for ap in auto_processings]
-        for auto_processings in models.get_auto_procs_for_data_collections(db, dcids)
+        for auto_processings in result
     ]
 
 
 async def load_data_collections_for_samples(
     db: Session, sample_ids: typing.List[strawberry.ID]
 ) -> typing.List[typing.List["DataCollection"]]:
+    result = await models.get_data_collections_for_samples(db, sample_ids)
     return [
         [DataCollection.from_instance(dc) for dc in data_collections]
-        for data_collections in models.get_data_collections_for_samples(db, sample_ids)
+        for data_collections in result
     ]
 
 
@@ -89,7 +91,8 @@ class DataCollection:
     async def sample(self, info) -> typing.Optional["Sample"]:
         if self.sample_id is not None:
             db = info.context["db"]
-            return Sample.from_instance(models.get_sample(db, self.sample_id))
+            sample = await models.get_sample(db, self.sample_id)
+            return Sample.from_instance(sample)
 
 
 @strawberry.type
@@ -103,18 +106,20 @@ class Proposal:
     async def data_collections(self, info) -> typing.List[DataCollection]:
         proposal: Proposal = self.instance
         db = info.context["db"]
+        data_collections = await models.get_data_collections_for_proposal(db, proposal.proposalId)
         return [
             DataCollection.from_instance(dc)
-            for dc in models.get_data_collections_for_proposal(db, proposal.proposalId)
+            for dc in data_collections
         ]
 
     @strawberry.field
     async def samples(self, info) -> typing.List["Sample"]:
         proposal: Proposal = self.instance
         db = info.context["db"]
+        samples = await models.get_samples_for_proposal(db, proposal.proposalId)
         return [
             Sample.from_instance(sample)
-            for sample in models.get_samples_for_proposal(db, proposal.proposalId)
+            for sample in samples
         ]
 
     @classmethod
