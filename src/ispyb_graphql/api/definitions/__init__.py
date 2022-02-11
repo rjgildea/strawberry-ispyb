@@ -66,7 +66,7 @@ async def load_data_collections(
 
 async def load_samples(
     db: Session, sample_ids: typing.List[strawberry.ID]
-) -> typing.List[typing.List["Samples"]]:
+) -> typing.List[typing.List["Sample"]]:
     samples = await models.get_samples(db, sample_ids)
     return [Sample.from_instance(sample) for sample in samples]
 
@@ -124,13 +124,11 @@ class DataCollection:
 
     @strawberry.field
     async def auto_processings(self, info) -> typing.List[AutoProc]:
-        db = info.context["db"]
         return await info.context["auto_processing_loader"].load(self.dcid)
 
     @strawberry.field
     async def sample(self, info) -> typing.Optional["Sample"]:
         if self.sample_id is not None:
-            db = info.context["db"]
             return await info.context["sample_loader"].load(self.sample_id)
 
 
@@ -139,17 +137,13 @@ class Proposal:
     proposal_id: int
     name: str
 
-    instance: strawberry.Private[models.Proposal]
-
     @strawberry.field
     async def data_collections(
         self, info, scan_type: typing.Optional[ScanType] = None
     ) -> typing.List[DataCollection]:
-        session: BLSession = self.instance
-        proposal: models.Proposal = self.instance
         db = info.context["db"]
         dcids = await models.get_dcids_for_proposal(
-            db, proposal.proposalId, scan_type.value if scan_type else None
+            db, self.proposal_id, scan_type.value if scan_type else None
         )
         data_collections = [
             info.context["data_collections_loader"].load(dcid) for dcid in dcids
@@ -158,9 +152,8 @@ class Proposal:
 
     @strawberry.field
     async def samples(self, info) -> typing.List["Sample"]:
-        proposal: Proposal = self.instance
         db = info.context["db"]
-        samples = await models.get_samples_for_proposal(db, proposal.proposalId)
+        samples = await models.get_samples_for_proposal(db, self.proposal_id)
         return [Sample.from_instance(sample) for sample in samples]
 
     @classmethod
@@ -168,7 +161,6 @@ class Proposal:
         return cls(
             proposal_id=instance.proposalId,
             name=f"{instance.proposalCode}{instance.proposalNumber}",
-            instance=instance,
         )
 
 

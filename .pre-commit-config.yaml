@@ -1,0 +1,35 @@
+repos:
+
+# Automatically sort imports
+- repo: https://github.com/PyCQA/isort.git
+  rev: 5.9.2
+  hooks:
+  - id: isort
+
+# Automatic source code formatting
+- repo: https://github.com/psf/black
+  rev: 21.6b0
+  hooks:
+  - id: black
+    args: [--safe, --quiet]
+    files: \.pyi?$|SConscript$|^libtbx_config$
+    types: [file]
+
+# Linting
+- repo: https://github.com/PyCQA/flake8
+  rev: 3.9.2
+  hooks:
+  - id: flake8
+
+# Syntax validation and some basic sanity checks
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.0.1
+  hooks:
+  - id: check-ast
+  - id: check-yaml
+    args: ['--allow-multiple-documents']
+  - id: check-merge-conflict
+  - id: check-added-large-files
+    args: ['--maxkb=200']
+  - id: no-commit-to-branch
+    name: "Don't commit to main directly"

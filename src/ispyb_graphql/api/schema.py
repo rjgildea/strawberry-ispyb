@@ -1,17 +1,15 @@
 from __future__ import annotations
 
-from pprint import pprint
+import typing
 
 import strawberry
-from fastapi import Depends, Request
+from fastapi import Request, WebSocket
 from fastapi.responses import HTMLResponse
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from main import models
-from main.database import SessionLocal
 from strawberry.permission import BasePermission
 from strawberry.types import Info
 
-from .definitions import Beamline, DataCollection, Proposal, Sample, Visit
+from .definitions import Beamline, Proposal, Visit
 
 
 class IsAuthenticated(BasePermission):
@@ -64,7 +62,6 @@ class Query:
         info,
         name: strawberry.ID,
     ) -> Beamline:
-        db = info.context["db"]
         return Beamline(name=name)
 
 

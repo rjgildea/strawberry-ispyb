@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import datetime
-import enum
+
 import itertools
 import logging
-import operator
 import re
 
 from ispyb.sqlalchemy import (

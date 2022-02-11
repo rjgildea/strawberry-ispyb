@@ -8,7 +8,6 @@ from fastapi import Depends, FastAPI
 from strawberry.dataloader import DataLoader
 from strawberry.fastapi import GraphQLRouter
 
-from . import models
 from .database import SessionLocal
 
 
