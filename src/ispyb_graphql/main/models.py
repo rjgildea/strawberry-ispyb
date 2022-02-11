@@ -14,15 +14,18 @@ from ispyb.sqlalchemy import (
     Container,
     Crystal,
     DataCollection,
+    Person,
     Proposal,
+    ProposalHasPerson,
     Protein,
 )
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 logger = logging.getLogger(__name__)
 
 re_proposal = re.compile(r"([a-z][a-z])([0-9]+)")
+re_visit = re.compile(r"([a-z][a-z])([0-9]+)-([0-9]+)")
 
 
 def proposal_code_and_number_from_name(name: str) -> tuple[str, int]:
@@ -32,6 +35,13 @@ def proposal_code_and_number_from_name(name: str) -> tuple[str, int]:
     return code, int(number)
 
 
+def proposal_code_number_and_visit_number_from_name(name: str) -> tuple[str, int]:
+    m = re_visit.match(name)
+    assert m
+    code, number, visit_number = m.groups()
+    return code, int(number), int(visit_number)
+
+
 async def get_proposal(db: Session, name: str) -> Proposal:
     print(f"Getting proposal {name}")
     code, number = proposal_code_and_number_from_name(name)
@@ -39,6 +49,21 @@ async def get_proposal(db: Session, name: str) -> Proposal:
         select(Proposal)
         .filter(Proposal.proposalCode == code)
         .filter(Proposal.proposalNumber == number)
+    )
+    result = await db.execute(stmt)
+    return result.scalar_one()
+
+
+async def get_blsession(db: Session, name: str) -> BLSession:
+    print(f"Getting blsession {name}")
+    code, number, visit_number = proposal_code_number_and_visit_number_from_name(name)
+    stmt = (
+        select(BLSession)
+        .join(Proposal, Proposal.proposalId == BLSession.proposalId)
+        .filter(Proposal.proposalCode == code)
+        .filter(Proposal.proposalNumber == number)
+        .filter(BLSession.visit_number == visit_number)
+        .options(joinedload(BLSession.Proposal))
     )
     result = await db.execute(stmt)
     return result.scalar_one()
@@ -55,6 +80,38 @@ async def get_data_collections_for_proposal(
     )
     result = await db.execute(stmt)
     return result.scalars().all()
+
+
+async def get_data_collections_for_blsession(
+    db: Session, session_id: int
+) -> list[DataCollection]:
+    print(f"Getting data collections for {session_id=}")
+    stmt = (
+        select(DataCollection)
+        .join(BLSession, DataCollection.SESSIONID == BLSession.sessionId)
+        .filter(BLSession.sessionId == session_id)
+    )
+    result = await db.execute(stmt)
+    return result.scalars().all()
+
+
+async def get_data_collections_for_blsessions(
+    db: Session, blsession_ids: list[int]
+) -> list[list[DataCollection]]:
+    print(f"Getting data collections for {blsession_ids=}")
+    stmt = (
+        select(DataCollection)
+        .join(BLSession, BLSession.sessionId == DataCollection.SESSIONID)
+        .filter(BLSession.sessionId.in_(blsession_ids))
+    )
+    results = await db.execute(stmt)
+    grouped = {
+        k: list(g)
+        for k, g in itertools.groupby(results.scalars().all(), lambda g: g.SESSIONID)
+    }
+    return [
+        [dc for dc in grouped[sid]] if sid in grouped else [] for sid in blsession_ids
+    ]
 
 
 async def get_sample(db: Session, sample_id: int) -> BLSample:
@@ -131,3 +188,47 @@ async def get_auto_procs_for_data_collections(
         [result.AutoProc for result in grouped[dcid]] if dcid in grouped else []
         for dcid in dcids
     ]
+
+
+async def proposal_has_person(db: Session, name: str, fedid: str) -> bool:
+    code, number = proposal_code_and_number_from_name(name)
+    print(f"{code=}")
+    print(f"{number=}")
+    stmt = (
+        select(func.count(Person.personId))
+        .join(ProposalHasPerson, ProposalHasPerson.personId == Person.personId)
+        .join(Proposal, Proposal.proposalId == ProposalHasPerson.proposalId)
+        .filter(Proposal.proposalCode == code)
+        .filter(Proposal.proposalNumber == number)
+        .filter(Person.login == fedid)
+    )
+    count = await db.scalar(stmt)
+    print(f"{count=}")
+
+    return True
+    # result = await db.execute(stmt)
+    if count:
+        return True
+    return False
+
+
+async def get_blsessions_for_beamline(
+    db: Session,
+    beamline: str,
+    start_time: datetime.datetime = None,
+    end_time: datetime.datetime = None,
+) -> list[BLSession]:
+    print(f"Getting blsessions for {beamline=}")
+    stmt = (
+        select(BLSession)
+        .filter(BLSession.beamLineName == beamline)
+        .options(joinedload(BLSession.Proposal))
+    )
+    if start_time:
+        stmt = stmt.filter(BLSession.endDate > start_time)
+    if end_time:
+        if start_time:
+            assert end_time > start_time
+        stmt = stmt.filter(BLSession.startDate < end_time)
+    result = await db.execute(stmt)
+    return result.scalars().all()

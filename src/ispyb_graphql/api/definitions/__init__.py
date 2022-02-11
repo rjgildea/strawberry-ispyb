@@ -1,5 +1,6 @@
 # from __future__ import annotations
 
+import datetime
 import os
 import pathlib
 import typing
@@ -65,6 +66,16 @@ async def load_data_collections_for_samples(
     ]
 
 
+async def load_data_collections_for_visit(
+    db: Session, blsession_ids: typing.List[strawberry.ID]
+) -> typing.List[typing.List["DataCollection"]]:
+    result = await models.get_data_collections_for_blsessions(db, blsession_ids)
+    return [
+        [DataCollection.from_instance(dc) for dc in data_collections]
+        for data_collections in result
+    ]
+
+
 async def load_samples(
     db: Session, sample_ids: typing.List[strawberry.ID]
 ) -> typing.List[typing.List["Samples"]]:
@@ -76,6 +87,8 @@ async def load_samples(
 class DataCollection:
     dcid: int
     filename: Path
+    start_time: datetime.datetime
+    end_time: datetime.datetime
     sample_id: typing.Optional[int] = None
 
     # instance: strawberry.Private[models.DataCollection]
@@ -86,6 +99,8 @@ class DataCollection:
             dcid=instance.dataCollectionId,
             filename=f"{instance.imageDirectory}{instance.fileTemplate}",
             sample_id=instance.BLSAMPLEID,
+            start_time=instance.startTime,
+            end_time=instance.endTime,
         )
 
     @strawberry.field
@@ -109,7 +124,7 @@ class Proposal:
 
     @strawberry.field
     async def data_collections(self, info) -> typing.List[DataCollection]:
-        proposal: Proposal = self.instance
+        proposal: models.Proposal = self.instance
         db = info.context["db"]
         data_collections = await models.get_data_collections_for_proposal(
             db, proposal.proposalId
@@ -133,6 +148,34 @@ class Proposal:
 
 
 @strawberry.type
+class Visit:
+    session_id: int
+    name: str
+    start_time: datetime.datetime
+    end_time: datetime.datetime
+
+    instance: strawberry.Private[models.BLSession]
+
+    @strawberry.field
+    async def data_collections(self, info) -> typing.List[DataCollection]:
+        session: BLSession = self.instance
+        db = info.context["db"]
+        return await info.context["data_collections_for_visit_loader"].load(
+            self.session_id
+        )
+
+    @classmethod
+    def from_instance(cls, instance: models.BLSession):
+        return cls(
+            session_id=instance.sessionId,
+            name=f"{instance.Proposal.proposalCode}{instance.Proposal.proposalNumber}-{instance.visit_number}",
+            start_time=instance.startDate,
+            end_time=instance.endDate,
+            instance=instance,
+        )
+
+
+@strawberry.type
 class Sample:
     name: str
     sample_id: int
@@ -150,3 +193,21 @@ class Sample:
             sample_id=instance.blSampleId,
             crystal_id=instance.crystalId,
         )
+
+
+@strawberry.type
+class Beamline:
+    name: str
+
+    @strawberry.field
+    async def visits(
+        self,
+        info,
+        start_time: datetime.datetime = None,
+        end_time: datetime.datetime = datetime.datetime.now(),
+    ) -> typing.List[Visit]:
+        db = info.context["db"]
+        blsessions = await models.get_blsessions_for_beamline(
+            db, self.name, start_time=start_time, end_time=end_time
+        )
+        return [Visit.from_instance(blsession) for blsession in blsessions]

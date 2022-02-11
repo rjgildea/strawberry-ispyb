@@ -17,9 +17,7 @@ async def get_session():
         yield session
 
 
-async def get_context(
-    db=Depends(get_session),
-):
+async def get_context(db=Depends(get_session)):
     return {
         "db": db,
         "auto_processing_loader": DataLoader(
@@ -37,6 +35,12 @@ async def get_context(
         "sample_loader": DataLoader(
             functools.partial(
                 definitions.load_samples,
+                db,
+            )
+        ),
+        "data_collections_for_visit_loader": DataLoader(
+            functools.partial(
+                definitions.load_data_collections_for_visit,
                 db,
             )
         ),
