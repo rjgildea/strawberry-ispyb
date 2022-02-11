@@ -1,6 +1,7 @@
 # from __future__ import annotations
 
 import datetime
+import enum
 import os
 import pathlib
 import typing
@@ -56,24 +57,11 @@ async def load_auto_processings(
     ]
 
 
-async def load_data_collections_for_samples(
-    db: Session, sample_ids: typing.List[strawberry.ID]
+async def load_data_collections(
+    db: Session, dcids: typing.List[strawberry.ID]
 ) -> typing.List[typing.List["DataCollection"]]:
-    result = await models.get_data_collections_for_samples(db, sample_ids)
-    return [
-        [DataCollection.from_instance(dc) for dc in data_collections]
-        for data_collections in result
-    ]
-
-
-async def load_data_collections_for_visit(
-    db: Session, blsession_ids: typing.List[strawberry.ID]
-) -> typing.List[typing.List["DataCollection"]]:
-    result = await models.get_data_collections_for_blsessions(db, blsession_ids)
-    return [
-        [DataCollection.from_instance(dc) for dc in data_collections]
-        for data_collections in result
-    ]
+    data_collections = await models.get_data_collections(db, dcids)
+    return [DataCollection.from_instance(dc) for dc in data_collections]
 
 
 async def load_samples(
@@ -83,13 +71,32 @@ async def load_samples(
     return [Sample.from_instance(sample) for sample in samples]
 
 
+@strawberry.enum
+class ScanType(enum.Enum):
+    ROTATION = "rotation"
+    GRID = "grid"
+    SCREENING = "screening"
+
+
 @strawberry.type
 class DataCollection:
     dcid: int
     filename: Path
     start_time: datetime.datetime
     end_time: datetime.datetime
+    axis_start: float
+    axis_end: float
+    axis_range: float
+    overlap: float
+    number_of_images: int
+    start_image_number: int
+    exposure_time: float
     sample_id: typing.Optional[int] = None
+    rotation_axis: typing.Optional[str] = None
+    phi_start: typing.Optional[float] = (None,)
+    kappa_start: typing.Optional[float] = None
+    omega_start: typing.Optional[float] = (None,)
+    chi_start: typing.Optional[float] = (None,)
 
     # instance: strawberry.Private[models.DataCollection]
 
@@ -101,6 +108,18 @@ class DataCollection:
             sample_id=instance.BLSAMPLEID,
             start_time=instance.startTime,
             end_time=instance.endTime,
+            axis_start=instance.axisStart,
+            axis_end=instance.axisEnd,
+            axis_range=instance.axisRange,
+            overlap=instance.overlap,
+            number_of_images=instance.numberOfImages,
+            start_image_number=instance.startImageNumber,
+            exposure_time=instance.exposureTime,
+            rotation_axis=instance.rotationAxis,
+            phi_start=instance.phiStart,
+            kappa_start=instance.kappaStart,
+            omega_start=instance.omegaStart,
+            chi_start=instance.chiStart,
         )
 
     @strawberry.field
@@ -123,13 +142,19 @@ class Proposal:
     instance: strawberry.Private[models.Proposal]
 
     @strawberry.field
-    async def data_collections(self, info) -> typing.List[DataCollection]:
+    async def data_collections(
+        self, info, scan_type: typing.Optional[ScanType] = None
+    ) -> typing.List[DataCollection]:
+        session: BLSession = self.instance
         proposal: models.Proposal = self.instance
         db = info.context["db"]
-        data_collections = await models.get_data_collections_for_proposal(
-            db, proposal.proposalId
+        dcids = await models.get_dcids_for_proposal(
+            db, proposal.proposalId, scan_type.value if scan_type else None
         )
-        return [DataCollection.from_instance(dc) for dc in data_collections]
+        data_collections = [
+            info.context["data_collections_loader"].load(dcid) for dcid in dcids
+        ]
+        return data_collections
 
     @strawberry.field
     async def samples(self, info) -> typing.List["Sample"]:
@@ -154,15 +179,20 @@ class Visit:
     start_time: datetime.datetime
     end_time: datetime.datetime
 
-    instance: strawberry.Private[models.BLSession]
+    # instance: strawberry.Private[models.BLSession]
 
     @strawberry.field
-    async def data_collections(self, info) -> typing.List[DataCollection]:
-        session: BLSession = self.instance
+    async def data_collections(
+        self, info, scan_type: ScanType = None
+    ) -> typing.List[DataCollection]:
         db = info.context["db"]
-        return await info.context["data_collections_for_visit_loader"].load(
-            self.session_id
+        dcids = await models.get_dcids_for_blsession(
+            db, self.session_id, scan_type.value if scan_type else None
         )
+        data_collections = [
+            info.context["data_collections_loader"].load(dcid) for dcid in dcids
+        ]
+        return data_collections
 
     @classmethod
     def from_instance(cls, instance: models.BLSession):
@@ -171,7 +201,6 @@ class Visit:
             name=f"{instance.Proposal.proposalCode}{instance.Proposal.proposalNumber}-{instance.visit_number}",
             start_time=instance.startDate,
             end_time=instance.endDate,
-            instance=instance,
         )
 
 
@@ -182,9 +211,14 @@ class Sample:
     crystal_id: int
 
     @strawberry.field
-    async def data_collections(self, info) -> typing.List[DataCollection]:
+    async def data_collections(
+        self, info, scan_type: ScanType = None
+    ) -> typing.List[DataCollection]:
         db = info.context["db"]
-        return await info.context["data_collections_loader"].load(self.sample_id)
+        dcids = await models.get_dcids_for_sample(
+            db, self.sample_id, scan_type=scan_type.value if scan_type else None
+        )
+        return [info.context["data_collections_loader"].load(dcid) for dcid in dcids]
 
     @classmethod
     def from_instance(cls, instance: models.BLSample):
@@ -211,3 +245,21 @@ class Beamline:
             db, self.name, start_time=start_time, end_time=end_time
         )
         return [Visit.from_instance(blsession) for blsession in blsessions]
+
+    @strawberry.field
+    async def data_collections(
+        self,
+        info,
+        start_time: datetime.datetime = None,
+        end_time: datetime.datetime = datetime.datetime.now(),
+        scan_type: ScanType = None,
+    ) -> typing.List[DataCollection]:
+        db = info.context["db"]
+        data_collections = await models.get_data_collections_for_beamline(
+            db,
+            self.name,
+            start_time=start_time,
+            end_time=end_time,
+            scan_type=scan_type.value if scan_type else scan_type,
+        )
+        return [DataCollection.from_instance(dc) for dc in data_collections]

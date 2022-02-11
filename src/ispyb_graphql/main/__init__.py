@@ -28,19 +28,13 @@ async def get_context(db=Depends(get_session)):
         ),
         "data_collections_loader": DataLoader(
             functools.partial(
-                definitions.load_data_collections_for_samples,
+                definitions.load_data_collections,
                 db,
             )
         ),
         "sample_loader": DataLoader(
             functools.partial(
                 definitions.load_samples,
-                db,
-            )
-        ),
-        "data_collections_for_visit_loader": DataLoader(
-            functools.partial(
-                definitions.load_data_collections_for_visit,
                 db,
             )
         ),
