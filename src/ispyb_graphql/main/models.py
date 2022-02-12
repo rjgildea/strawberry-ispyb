@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import datetime
-
 import itertools
 import logging
 import re
