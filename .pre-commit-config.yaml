@@ -31,5 +31,3 @@ repos:
   - id: check-merge-conflict
   - id: check-added-large-files
     args: ['--maxkb=200']
-  - id: no-commit-to-branch
-    name: "Don't commit to main directly"
