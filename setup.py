@@ -7,7 +7,8 @@ setup(
     author="Richard Gildea",
     author_email="richard.gildea@diamond.ac.uk",
     url="https://github.com/rjgildea/strawberry-ispyb",
-    packages=find_packages(include=["src/ispyb_graphql"]),
+    packages=find_packages(where="src"),
+    package_dir={"": "src"},
     install_requires=[
         "asyncmy",
         "cython",

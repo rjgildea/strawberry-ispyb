@@ -7,8 +7,9 @@ import pathlib
 import typing
 
 import strawberry
-from main import models
 from sqlalchemy.orm import Session
+
+from ispyb_graphql import crud, models
 
 Path = strawberry.scalar(
     typing.NewType("Path", str),
@@ -50,7 +51,7 @@ class AutoProc:
 async def load_auto_processings(
     db: Session, dcids: typing.List[strawberry.ID]
 ) -> typing.List[typing.List[AutoProc]]:
-    result = await models.get_auto_procs_for_data_collections(db, dcids)
+    result = await crud.get_auto_procs_for_data_collections(db, dcids)
     return [
         [AutoProc.from_instance(ap) for ap in auto_processings]
         for auto_processings in result
@@ -60,14 +61,14 @@ async def load_auto_processings(
 async def load_data_collections(
     db: Session, dcids: typing.List[strawberry.ID]
 ) -> typing.List[typing.List["DataCollection"]]:
-    data_collections = await models.get_data_collections(db, dcids)
+    data_collections = await crud.get_data_collections(db, dcids)
     return [DataCollection.from_instance(dc) for dc in data_collections]
 
 
 async def load_samples(
     db: Session, sample_ids: typing.List[strawberry.ID]
 ) -> typing.List[typing.List["Sample"]]:
-    samples = await models.get_samples(db, sample_ids)
+    samples = await crud.get_samples(db, sample_ids)
     return [Sample.from_instance(sample) for sample in samples]
 
 
@@ -97,8 +98,6 @@ class DataCollection:
     kappa_start: typing.Optional[float] = None
     omega_start: typing.Optional[float] = (None,)
     chi_start: typing.Optional[float] = (None,)
-
-    # instance: strawberry.Private[models.DataCollection]
 
     @classmethod
     def from_instance(cls, instance: models.DataCollection):
@@ -142,7 +141,7 @@ class Proposal:
         self, info, scan_type: typing.Optional[ScanType] = None
     ) -> typing.List[DataCollection]:
         db = info.context["db"]
-        dcids = await models.get_dcids_for_proposal(
+        dcids = await crud.get_dcids_for_proposal(
             db, self.proposal_id, scan_type.value if scan_type else None
         )
         data_collections = [
@@ -153,11 +152,11 @@ class Proposal:
     @strawberry.field
     async def samples(self, info) -> typing.List["Sample"]:
         db = info.context["db"]
-        samples = await models.get_samples_for_proposal(db, self.proposal_id)
+        samples = await crud.get_samples_for_proposal(db, self.proposal_id)
         return [Sample.from_instance(sample) for sample in samples]
 
     @classmethod
-    def from_instance(cls, instance: models.Proposal):
+    def from_instance(cls, instance: crud.Proposal):
         return cls(
             proposal_id=instance.proposalId,
             name=f"{instance.proposalCode}{instance.proposalNumber}",
@@ -171,14 +170,12 @@ class Visit:
     start_time: datetime.datetime
     end_time: datetime.datetime
 
-    # instance: strawberry.Private[models.BLSession]
-
     @strawberry.field
     async def data_collections(
         self, info, scan_type: ScanType = None
     ) -> typing.List[DataCollection]:
         db = info.context["db"]
-        dcids = await models.get_dcids_for_blsession(
+        dcids = await crud.get_dcids_for_blsession(
             db, self.session_id, scan_type.value if scan_type else None
         )
         data_collections = [
@@ -207,7 +204,7 @@ class Sample:
         self, info, scan_type: ScanType = None
     ) -> typing.List[DataCollection]:
         db = info.context["db"]
-        dcids = await models.get_dcids_for_sample(
+        dcids = await crud.get_dcids_for_sample(
             db, self.sample_id, scan_type=scan_type.value if scan_type else None
         )
         return [info.context["data_collections_loader"].load(dcid) for dcid in dcids]
@@ -233,7 +230,7 @@ class Beamline:
         end_time: datetime.datetime = datetime.datetime.now(),
     ) -> typing.List[Visit]:
         db = info.context["db"]
-        blsessions = await models.get_blsessions_for_beamline(
+        blsessions = await crud.get_blsessions_for_beamline(
             db, self.name, start_time=start_time, end_time=end_time
         )
         return [Visit.from_instance(blsession) for blsession in blsessions]
@@ -247,7 +244,7 @@ class Beamline:
         scan_type: ScanType = None,
     ) -> typing.List[DataCollection]:
         db = info.context["db"]
-        data_collections = await models.get_data_collections_for_beamline(
+        data_collections = await crud.get_data_collections_for_beamline(
             db,
             self.name,
             start_time=start_time,

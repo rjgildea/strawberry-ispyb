@@ -5,7 +5,10 @@ import itertools
 import logging
 import re
 
-from ispyb.sqlalchemy import (
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session, joinedload, load_only
+
+from ispyb_graphql.models import (
     AutoProc,
     AutoProcIntegration,
     AutoProcProgram,
@@ -20,8 +23,6 @@ from ispyb.sqlalchemy import (
     ProposalHasPerson,
     Protein,
 )
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session, joinedload, load_only
 
 logger = logging.getLogger(__name__)
 

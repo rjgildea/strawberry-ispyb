@@ -5,11 +5,11 @@ import typing
 import strawberry
 from fastapi import Request, WebSocket
 from fastapi.responses import HTMLResponse
-from main import models
 from strawberry.permission import BasePermission
 from strawberry.types import Info
 
-from .definitions import Beamline, Proposal, Visit
+from ispyb_graphql import crud
+from ispyb_graphql.api.definitions import Beamline, Proposal, Visit
 
 
 class IsAuthenticated(BasePermission):
@@ -31,7 +31,7 @@ class IsAuthenticated(BasePermission):
         #     return True
 
         db = info.context["db"]
-        return models.proposal_has_person(db, proposal, user["user"])
+        return crud.proposal_has_person(db, proposal, user["user"])
 
 
 @strawberry.type
@@ -43,7 +43,7 @@ class Query:
         name: strawberry.ID,
     ) -> Proposal:
         db = info.context["db"]
-        proposal = await models.get_proposal(db, name=name)
+        proposal = await crud.get_proposal(db, name=name)
         return Proposal.from_instance(proposal)
 
     @strawberry.field(permission_classes=[IsAuthenticated])
@@ -53,7 +53,7 @@ class Query:
         name: strawberry.ID,
     ) -> Visit:
         db = info.context["db"]
-        session = await models.get_blsession(db, name=name)
+        session = await crud.get_blsession(db, name=name)
         return Visit.from_instance(session)
 
     @strawberry.field

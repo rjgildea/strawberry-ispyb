@@ -3,8 +3,6 @@ from __future__ import annotations
 import functools
 import typing
 
-from api import definitions
-from api.schema import schema
 from cas import CASClient
 from fastapi import Depends, FastAPI
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -13,7 +11,9 @@ from starlette.requests import Request
 from strawberry.dataloader import DataLoader
 from strawberry.fastapi import GraphQLRouter
 
-from .database import SessionLocal
+from ispyb_graphql.api import definitions
+from ispyb_graphql.api.schema import schema
+from ispyb_graphql.database import SessionLocal
 
 app = FastAPI()
 
