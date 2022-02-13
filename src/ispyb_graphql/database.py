@@ -25,3 +25,7 @@ SQLALCHEMY_DATABASE_URL = get_database_url(connector="asyncmy")
 
 engine = create_async_engine(SQLALCHEMY_DATABASE_URL, future=True)
 SessionLocal = sessionmaker(engine, class_=AsyncSession)
+
+
+async def get_db_session():
+    return SessionLocal()

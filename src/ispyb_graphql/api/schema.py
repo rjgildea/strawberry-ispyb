@@ -1,15 +1,26 @@
 from __future__ import annotations
 
+import functools
 import typing
 
 import strawberry
 from fastapi import Request, WebSocket
 from fastapi.responses import HTMLResponse
+from strawberry.dataloader import DataLoader
+from strawberry.extensions import Extension
 from strawberry.permission import BasePermission
 from strawberry.types import Info
 
 from ispyb_graphql import crud
-from ispyb_graphql.api.definitions import Beamline, Proposal, Visit
+from ispyb_graphql.api.definitions import (
+    Beamline,
+    Proposal,
+    Visit,
+    load_auto_processings,
+    load_data_collections,
+    load_samples,
+)
+from ispyb_graphql.database import get_db_session
 
 
 class IsAuthenticated(BasePermission):
@@ -65,4 +76,37 @@ class Query:
         return Beamline(name=name)
 
 
-schema = strawberry.Schema(Query)
+class ISPyBGraphQLExtension(Extension):
+    async def on_request_start(self):
+        db = await get_db_session()
+        if self.execution_context.context is None:
+            self.execution_context.context = {}
+        self.execution_context.context.update(
+            {
+                "db": db,
+                "auto_processing_loader": DataLoader(
+                    functools.partial(
+                        load_auto_processings,
+                        db,
+                    )
+                ),
+                "data_collections_loader": DataLoader(
+                    functools.partial(
+                        load_data_collections,
+                        db,
+                    )
+                ),
+                "sample_loader": DataLoader(
+                    functools.partial(
+                        load_samples,
+                        db,
+                    )
+                ),
+            }
+        )
+
+    async def on_request_end(self):
+        await self.execution_context.context["db"].close()
+
+
+schema = strawberry.Schema(Query, extensions=[ISPyBGraphQLExtension])

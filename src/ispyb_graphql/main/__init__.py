@@ -1,19 +1,15 @@
 from __future__ import annotations
 
-import functools
 import typing
 
 from cas import CASClient
-from fastapi import Depends, FastAPI
+from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.requests import Request
-from strawberry.dataloader import DataLoader
 from strawberry.fastapi import GraphQLRouter
 
-from ispyb_graphql.api import definitions
 from ispyb_graphql.api.schema import schema
-from ispyb_graphql.database import SessionLocal
 
 app = FastAPI()
 
@@ -94,38 +90,8 @@ def logout_callback(request: Request):
     return HTMLResponse('Logged out from CAS. <a href="/login">Login</a>')
 
 
-async def get_session():
-    async with SessionLocal() as session:
-        yield session
-
-
-async def get_context(db=Depends(get_session)):
-    return {
-        "db": db,
-        "auto_processing_loader": DataLoader(
-            functools.partial(
-                definitions.load_auto_processings,
-                db,
-            )
-        ),
-        "data_collections_loader": DataLoader(
-            functools.partial(
-                definitions.load_data_collections,
-                db,
-            )
-        ),
-        "sample_loader": DataLoader(
-            functools.partial(
-                definitions.load_samples,
-                db,
-            )
-        ),
-    }
-
-
 graphql_app = GraphQLRouter(
     schema,
-    context_getter=get_context,
 )
 
 
