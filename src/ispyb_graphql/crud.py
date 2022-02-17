@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, joinedload, load_only
 
 from ispyb_graphql.models import (
     AutoProc,
+    AutoProcessingResult,
     AutoProcIntegration,
     AutoProcProgram,
     BLSample,
@@ -199,12 +200,17 @@ async def get_samples_for_proposal(db: Session, proposal_id: int) -> list[BLSamp
     return result.scalars().all()
 
 
-async def get_auto_procs_for_data_collections(
+async def get_auto_processing_results_for_dcids(
     db: Session, dcids: list[int]
-) -> list[list[AutoProcIntegration]]:
+) -> list[list[AutoProcessingResult]]:
     print(f"Getting autoprocessings for dcids: {dcids}")
     stmt = (
-        select(DataCollection.dataCollectionId, AutoProc)
+        select(
+            DataCollection.dataCollectionId,
+            AutoProc,
+            AutoProcIntegration,
+            AutoProcProgram,
+        )
         .join(
             AutoProcProgram,
             AutoProcProgram.autoProcProgramId == AutoProc.autoProcProgramId,
@@ -218,7 +224,6 @@ async def get_auto_procs_for_data_collections(
             DataCollection.dataCollectionId == AutoProcIntegration.dataCollectionId,
         )
         .filter(DataCollection.dataCollectionId.in_(dcids))
-        # .options(joinedload(AutoProc.AutoProcProgram))
     )
     results = await db.execute(stmt)
     grouped = {
@@ -226,7 +231,16 @@ async def get_auto_procs_for_data_collections(
         for k, g in itertools.groupby(results.all(), lambda g: g.dataCollectionId)
     }
     return [
-        [result.AutoProc for result in grouped[dcid]] if dcid in grouped else []
+        [
+            AutoProcessingResult(
+                AutoProc=result.AutoProc,
+                AutoProcIntegration=result.AutoProcIntegration,
+                AutoProcProgram=result.AutoProcProgram,
+            )
+            for result in grouped[dcid]
+        ]
+        if dcid in grouped
+        else []
         for dcid in dcids
     ]
 

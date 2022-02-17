@@ -29,31 +29,36 @@ class UnitCell:
 
 
 @strawberry.type
-class AutoProc:
+class AutoProcessingResult:
+    program: str
     space_group: str
     unit_cell: UnitCell
 
     @classmethod
-    def from_instance(cls, instance: models.AutoProc):
+    def from_instance(
+        cls,
+        instance: models.AutoProcessingResult,
+    ):
         return cls(
-            space_group=instance.spaceGroup,
+            program=instance.AutoProcProgram.processingPrograms,
+            space_group=instance.AutoProc.spaceGroup,
             unit_cell=UnitCell(
-                instance.refinedCell_a,
-                instance.refinedCell_b,
-                instance.refinedCell_c,
-                instance.refinedCell_alpha,
-                instance.refinedCell_beta,
-                instance.refinedCell_gamma,
+                instance.AutoProc.refinedCell_a,
+                instance.AutoProc.refinedCell_b,
+                instance.AutoProc.refinedCell_c,
+                instance.AutoProc.refinedCell_alpha,
+                instance.AutoProc.refinedCell_beta,
+                instance.AutoProc.refinedCell_gamma,
             ),
         )
 
 
 async def load_auto_processings(
     db: Session, dcids: typing.List[strawberry.ID]
-) -> typing.List[typing.List[AutoProc]]:
-    result = await crud.get_auto_procs_for_data_collections(db, dcids)
+) -> typing.List[typing.List[AutoProcessingResult]]:
+    result = await crud.get_auto_processing_results_for_dcids(db, dcids)
     return [
-        [AutoProc.from_instance(ap) for ap in auto_processings]
+        [AutoProcessingResult.from_instance(ap) for ap in auto_processings]
         for auto_processings in result
     ]
 
@@ -122,7 +127,7 @@ class DataCollection:
         )
 
     @strawberry.field
-    async def auto_processings(self, info) -> typing.List[AutoProc]:
+    async def auto_processings(self, info) -> typing.List[AutoProcessingResult]:
         return await info.context["auto_processing_loader"].load(self.dcid)
 
     @strawberry.field

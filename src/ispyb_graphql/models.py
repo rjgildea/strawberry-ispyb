@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 from ispyb.sqlalchemy import (
     AutoProc,
     AutoProcIntegration,
@@ -29,3 +31,10 @@ __all__ = [
     "ProposalHasPerson",
     "Protein",
 ]
+
+
+@dataclass
+class AutoProcessingResult:
+    AutoProc: AutoProc
+    AutoProcIntegration: AutoProcIntegration
+    AutoProcProgram: AutoProcProgram
