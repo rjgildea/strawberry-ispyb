@@ -103,40 +103,6 @@ class AutoProcessingResult:
         return next((ms for ms in merging_stats if ms.shell == shell.value), None)
 
 
-async def load_auto_processings(
-    db: Session, dcids: List[strawberry.ID]
-) -> List[List[AutoProcessingResult]]:
-    result = await crud.get_auto_processing_results_for_dcids(db, dcids)
-    return [
-        [AutoProcessingResult.from_instance(ap) for ap in auto_processings]
-        for auto_processings in result
-    ]
-
-
-async def load_merging_statistics(
-    db: Session, auto_proc_ids: List[strawberry.ID]
-) -> List[List[MergingStatistics]]:
-    result = await crud.get_auto_proc_scaling_statistics_for_apids(db, auto_proc_ids)
-    return [
-        [MergingStatistics.from_instance(shell_stats) for shell_stats in statistics]
-        for statistics in result
-    ]
-
-
-async def load_data_collections(
-    db: Session, dcids: List[strawberry.ID]
-) -> List[List["DataCollection"]]:
-    data_collections = await crud.get_data_collections(db, dcids)
-    return [DataCollection.from_instance(dc) for dc in data_collections]
-
-
-async def load_samples(
-    db: Session, sample_ids: List[strawberry.ID]
-) -> List[List["Sample"]]:
-    samples = await crud.get_samples(db, sample_ids)
-    return [Sample.from_instance(sample) for sample in samples]
-
-
 @strawberry.enum
 class ScanType(enum.Enum):
     ROTATION = "rotation"
@@ -317,3 +283,37 @@ class Beamline:
             scan_type=scan_type.value if scan_type else scan_type,
         )
         return [DataCollection.from_instance(dc) for dc in data_collections]
+
+
+async def load_auto_processings(
+    db: Session, dcids: List[strawberry.ID]
+) -> List[List[AutoProcessingResult]]:
+    result = await crud.get_auto_processing_results_for_dcids(db, dcids)
+    return [
+        [AutoProcessingResult.from_instance(ap) for ap in auto_processings]
+        for auto_processings in result
+    ]
+
+
+async def load_merging_statistics(
+    db: Session, auto_proc_ids: List[strawberry.ID]
+) -> List[List[MergingStatistics]]:
+    result = await crud.get_auto_proc_scaling_statistics_for_apids(db, auto_proc_ids)
+    return [
+        [MergingStatistics.from_instance(shell_stats) for shell_stats in statistics]
+        for statistics in result
+    ]
+
+
+async def load_data_collections(
+    db: Session, dcids: List[strawberry.ID]
+) -> List[List["DataCollection"]]:
+    data_collections = await crud.get_data_collections(db, dcids)
+    return [DataCollection.from_instance(dc) for dc in data_collections]
+
+
+async def load_samples(
+    db: Session, sample_ids: List[strawberry.ID]
+) -> List[List["Sample"]]:
+    samples = await crud.get_samples(db, sample_ids)
+    return [Sample.from_instance(sample) for sample in samples]
