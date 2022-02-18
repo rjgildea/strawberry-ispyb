@@ -13,6 +13,8 @@ from ispyb_graphql.models import (
     AutoProcessingResult,
     AutoProcIntegration,
     AutoProcProgram,
+    AutoProcScaling,
+    AutoProcScalingStatistics,
     BLSample,
     BLSession,
     Container,
@@ -242,6 +244,35 @@ async def get_auto_processing_results_for_dcids(
         if dcid in grouped
         else []
         for dcid in dcids
+    ]
+
+
+async def get_auto_proc_scaling_statistics_for_apids(
+    db: Session, apids: list[int]
+) -> list[list[AutoProcScalingStatistics]]:
+    print(f"Getting AutoProcScalingStatistics for apids: {apids}")
+    stmt = (
+        select(
+            AutoProc.autoProcId,
+            AutoProcScalingStatistics,
+        )
+        .join(
+            AutoProcScaling,
+            AutoProcScaling.autoProcScalingId
+            == AutoProcScalingStatistics.autoProcScalingId,
+        )
+        .join(AutoProc, AutoProcScaling.autoProcId == AutoProc.autoProcId)
+        .filter(AutoProc.autoProcId.in_(apids))
+    )
+    results = await db.execute(stmt)
+    grouped = {
+        k: list(g) for k, g in itertools.groupby(results.all(), lambda g: g.autoProcId)
+    }
+    return [
+        [result.AutoProcScalingStatistics for result in grouped[apid]]
+        if apid in grouped
+        else []
+        for apid in apids
     ]
 
 

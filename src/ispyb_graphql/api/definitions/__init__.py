@@ -4,7 +4,7 @@ import datetime
 import enum
 import os
 import pathlib
-import typing
+from typing import List, NewType, Optional
 
 import strawberry
 from sqlalchemy.orm import Session
@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from ispyb_graphql import crud, models
 
 Path = strawberry.scalar(
-    typing.NewType("Path", str),
+    NewType("Path", str),
     serialize=lambda v: os.fspath(v),
     parse_value=lambda v: pathlib.Path(v),
 )
@@ -28,11 +28,51 @@ class UnitCell:
     gamma: float
 
 
+@strawberry.enum
+class MergingStatisticsType(enum.Enum):
+    OVERALL = "overall"
+    INNER_SHELL = "innerShell"
+    OUTER_SHELL = "outerShell"
+
+
+@strawberry.type
+class MergingStatistics:
+    shell: MergingStatisticsType
+    d_min: float
+    d_max: float
+    r_merge: Optional[float]
+    mean_isigi: Optional[float]
+    completeness: Optional[float]
+    multiplicity: Optional[float]
+    anomalous_completeness: Optional[float]
+    anomalous_multiplicity: Optional[float]
+    cc_half: Optional[float]
+    cc_anom: Optional[float]
+
+    @classmethod
+    def from_instance(cls, instance: models.AutoProcScalingStatistics):
+        return cls(
+            shell=instance.scalingStatisticsType,
+            d_min=instance.resolutionLimitHigh,
+            d_max=instance.resolutionLimitLow,
+            r_merge=instance.rMerge,
+            mean_isigi=instance.meanIOverSigI,
+            completeness=instance.completeness,
+            multiplicity=instance.multiplicity,
+            anomalous_completeness=instance.anomalousCompleteness,
+            anomalous_multiplicity=instance.anomalousMultiplicity,
+            cc_half=instance.ccHalf,
+            cc_anom=instance.ccAnomalous,
+        )
+
+
 @strawberry.type
 class AutoProcessingResult:
     program: str
     space_group: str
     unit_cell: UnitCell
+
+    auto_proc_id: strawberry.Private[int]
 
     @classmethod
     def from_instance(
@@ -50,12 +90,22 @@ class AutoProcessingResult:
                 instance.AutoProc.refinedCell_beta,
                 instance.AutoProc.refinedCell_gamma,
             ),
+            auto_proc_id=instance.AutoProc.autoProcId,
         )
+
+    @strawberry.field
+    async def merging_statistics(
+        self, info, shell: MergingStatisticsType
+    ) -> Optional[MergingStatistics]:
+        merging_stats = await info.context["merging_statistics_loader"].load(
+            self.auto_proc_id
+        )
+        return next((ms for ms in merging_stats if ms.shell == shell.value), None)
 
 
 async def load_auto_processings(
-    db: Session, dcids: typing.List[strawberry.ID]
-) -> typing.List[typing.List[AutoProcessingResult]]:
+    db: Session, dcids: List[strawberry.ID]
+) -> List[List[AutoProcessingResult]]:
     result = await crud.get_auto_processing_results_for_dcids(db, dcids)
     return [
         [AutoProcessingResult.from_instance(ap) for ap in auto_processings]
@@ -63,16 +113,26 @@ async def load_auto_processings(
     ]
 
 
+async def load_merging_statistics(
+    db: Session, auto_proc_ids: List[strawberry.ID]
+) -> List[List[MergingStatistics]]:
+    result = await crud.get_auto_proc_scaling_statistics_for_apids(db, auto_proc_ids)
+    return [
+        [MergingStatistics.from_instance(shell_stats) for shell_stats in statistics]
+        for statistics in result
+    ]
+
+
 async def load_data_collections(
-    db: Session, dcids: typing.List[strawberry.ID]
-) -> typing.List[typing.List["DataCollection"]]:
+    db: Session, dcids: List[strawberry.ID]
+) -> List[List["DataCollection"]]:
     data_collections = await crud.get_data_collections(db, dcids)
     return [DataCollection.from_instance(dc) for dc in data_collections]
 
 
 async def load_samples(
-    db: Session, sample_ids: typing.List[strawberry.ID]
-) -> typing.List[typing.List["Sample"]]:
+    db: Session, sample_ids: List[strawberry.ID]
+) -> List[List["Sample"]]:
     samples = await crud.get_samples(db, sample_ids)
     return [Sample.from_instance(sample) for sample in samples]
 
@@ -97,12 +157,12 @@ class DataCollection:
     number_of_images: int
     start_image_number: int
     exposure_time: float
-    sample_id: typing.Optional[int] = None
-    rotation_axis: typing.Optional[str] = None
-    phi_start: typing.Optional[float] = (None,)
-    kappa_start: typing.Optional[float] = None
-    omega_start: typing.Optional[float] = (None,)
-    chi_start: typing.Optional[float] = (None,)
+    sample_id: Optional[int] = None
+    rotation_axis: Optional[str] = None
+    phi_start: Optional[float] = None
+    kappa_start: Optional[float] = None
+    omega_start: Optional[float] = None
+    chi_start: Optional[float] = None
 
     @classmethod
     def from_instance(cls, instance: models.DataCollection):
@@ -127,11 +187,11 @@ class DataCollection:
         )
 
     @strawberry.field
-    async def auto_processings(self, info) -> typing.List[AutoProcessingResult]:
+    async def auto_processings(self, info) -> List[AutoProcessingResult]:
         return await info.context["auto_processing_loader"].load(self.dcid)
 
     @strawberry.field
-    async def sample(self, info) -> typing.Optional["Sample"]:
+    async def sample(self, info) -> Optional["Sample"]:
         if self.sample_id is not None:
             return await info.context["sample_loader"].load(self.sample_id)
 
@@ -143,8 +203,8 @@ class Proposal:
 
     @strawberry.field
     async def data_collections(
-        self, info, scan_type: typing.Optional[ScanType] = None
-    ) -> typing.List[DataCollection]:
+        self, info, scan_type: Optional[ScanType] = None
+    ) -> List[DataCollection]:
         db = info.context["db"]
         dcids = await crud.get_dcids_for_proposal(
             db, self.proposal_id, scan_type.value if scan_type else None
@@ -155,7 +215,7 @@ class Proposal:
         return data_collections
 
     @strawberry.field
-    async def samples(self, info) -> typing.List["Sample"]:
+    async def samples(self, info) -> List["Sample"]:
         db = info.context["db"]
         samples = await crud.get_samples_for_proposal(db, self.proposal_id)
         return [Sample.from_instance(sample) for sample in samples]
@@ -178,7 +238,7 @@ class Visit:
     @strawberry.field
     async def data_collections(
         self, info, scan_type: ScanType = None
-    ) -> typing.List[DataCollection]:
+    ) -> List[DataCollection]:
         db = info.context["db"]
         dcids = await crud.get_dcids_for_blsession(
             db, self.session_id, scan_type.value if scan_type else None
@@ -207,7 +267,7 @@ class Sample:
     @strawberry.field
     async def data_collections(
         self, info, scan_type: ScanType = None
-    ) -> typing.List[DataCollection]:
+    ) -> List[DataCollection]:
         db = info.context["db"]
         dcids = await crud.get_dcids_for_sample(
             db, self.sample_id, scan_type=scan_type.value if scan_type else None
@@ -233,7 +293,7 @@ class Beamline:
         info,
         start_time: datetime.datetime = None,
         end_time: datetime.datetime = datetime.datetime.now(),
-    ) -> typing.List[Visit]:
+    ) -> List[Visit]:
         db = info.context["db"]
         blsessions = await crud.get_blsessions_for_beamline(
             db, self.name, start_time=start_time, end_time=end_time
@@ -247,7 +307,7 @@ class Beamline:
         start_time: datetime.datetime = None,
         end_time: datetime.datetime = datetime.datetime.now(),
         scan_type: ScanType = None,
-    ) -> typing.List[DataCollection]:
+    ) -> List[DataCollection]:
         db = info.context["db"]
         data_collections = await crud.get_data_collections_for_beamline(
             db,

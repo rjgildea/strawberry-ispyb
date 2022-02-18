@@ -18,6 +18,7 @@ from ispyb_graphql.api.definitions import (
     Visit,
     load_auto_processings,
     load_data_collections,
+    load_merging_statistics,
     load_samples,
 )
 from ispyb_graphql.database import get_db_session
@@ -93,6 +94,12 @@ class ISPyBGraphQLExtension(Extension):
                 "data_collections_loader": DataLoader(
                     functools.partial(
                         load_data_collections,
+                        db,
+                    )
+                ),
+                "merging_statistics_loader": DataLoader(
+                    functools.partial(
+                        load_merging_statistics,
                         db,
                     )
                 ),
