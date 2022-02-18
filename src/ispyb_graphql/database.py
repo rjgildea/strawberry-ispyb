@@ -8,10 +8,11 @@ from sqlalchemy.orm import sessionmaker
 
 
 def get_database_url(connector: str = "mysqlconnector"):
-    credentials = os.getenv("ISPYB_CREDENTIALS")
+    credentials_filename = os.getenv("ISPYB_CREDENTIALS")
+    assert credentials_filename, "ISPYB_CREDENTIALS environment variable not set"
     config = configparser.RawConfigParser(allow_no_value=True)
-    if not config.read(credentials):
-        raise AttributeError(f"No configuration found at {credentials}")
+    if not config.read(credentials_filename):
+        raise AttributeError(f"No configuration found at {credentials_filename}")
     credentials = dict(config.items("ispyb_sqlalchemy"))
     return (
         f"mysql+{connector}"
