@@ -14,6 +14,7 @@ from strawberry.types import Info
 from ispyb_graphql import crud
 from ispyb_graphql.api.definitions import (
     Beamline,
+    DataCollection,
     Proposal,
     Visit,
     load_auto_processings,
@@ -74,6 +75,14 @@ class Query:
         name: strawberry.ID,
     ) -> Beamline:
         return Beamline(name=name)
+
+    @strawberry.field
+    async def data_collection(
+        self,
+        info,
+        dcid: strawberry.ID,
+    ) -> DataCollection:
+        return await info.context["data_collections_loader"].load(dcid)
 
 
 class ISPyBGraphQLExtension(Extension):
