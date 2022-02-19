@@ -37,3 +37,82 @@ query VisitQuery {
             "rotation_scans": [{"dcid": 993677}, {"dcid": 1002287}],
         }
     }
+
+
+@pytest.mark.asyncio
+async def test_proposal(mocker, testdb):
+
+    query = """
+query ProposalQuery {
+  proposal(name: "cm14451") {
+    name
+    proposalId
+
+    grid_scans: dataCollections(scanType: GRID) {
+      dcid
+    }
+
+    samples {
+      name
+      sampleId
+      crystalId
+
+      dataCollections(scanType: ROTATION) {
+        dcid
+      }
+    }
+  }
+}
+    """
+
+    mocker.patch.object(schema.IsAuthenticated, "has_permission")
+    result = await schema.schema.execute(
+        query,
+    )
+
+    assert result.errors is None
+    assert result.data == {
+        "proposal": {
+            "name": "cm14451",
+            "proposalId": 37027,
+            "grid_scans": [{"dcid": 6017405}],
+            "samples": [
+                {
+                    "name": "thau8",
+                    "sampleId": 398810,
+                    "crystalId": 333301,
+                    "dataCollections": [],
+                },
+                {
+                    "name": "tlys_jan_4",
+                    "sampleId": 374695,
+                    "crystalId": 310037,
+                    "dataCollections": [{"dcid": 993677}],
+                },
+                {
+                    "name": "thau88",
+                    "sampleId": 398816,
+                    "crystalId": 310037,
+                    "dataCollections": [],
+                },
+                {
+                    "name": "thau99",
+                    "sampleId": 398819,
+                    "crystalId": 310037,
+                    "dataCollections": [],
+                },
+                {
+                    "name": "XPDF-1",
+                    "sampleId": 398824,
+                    "crystalId": 333308,
+                    "dataCollections": [],
+                },
+                {
+                    "name": "XPDF-2",
+                    "sampleId": 398827,
+                    "crystalId": 333308,
+                    "dataCollections": [],
+                },
+            ],
+        }
+    }
