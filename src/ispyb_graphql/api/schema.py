@@ -27,12 +27,11 @@ from ispyb_graphql.database import get_db_session
 class IsAuthenticated(BasePermission):
     message = "User is not authenticated"
 
-    def has_permission(self, source: typing.Any, info: Info, **kwargs) -> bool:
+    async def has_permission(
+        self, source: typing.Any, info: Info, *, name: str, **kwargs
+    ) -> bool:
         request: typing.Union[Request, WebSocket] = info.context["request"]
 
-        print(f"{source=}")
-        print(f"{kwargs}")
-        proposal = kwargs.get("name")
         user = request.session.get("user")
         if not user:
             return HTMLResponse(
@@ -43,7 +42,7 @@ class IsAuthenticated(BasePermission):
         #     return True
 
         db = info.context["db"]
-        return crud.proposal_has_person(db, proposal, user["user"])
+        return await crud.proposal_has_person(db, name, user["user"])
 
 
 @strawberry.type

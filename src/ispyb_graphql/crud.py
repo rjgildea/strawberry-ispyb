@@ -63,7 +63,7 @@ def proposal_code_and_number_from_name(name: str) -> tuple[str, int]:
     return code, int(number)
 
 
-def proposal_code_number_and_visit_number_from_name(name: str) -> tuple[str, int]:
+def proposal_code_number_and_visit_number_from_name(name: str) -> tuple[str, int, int]:
     m = re_visit.match(name)
     assert m
     code, number, visit_number = m.groups()

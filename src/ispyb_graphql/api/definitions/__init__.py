@@ -280,7 +280,7 @@ class Beamline:
             self.name,
             start_time=start_time,
             end_time=end_time,
-            scan_type=scan_type.value if scan_type else scan_type,
+            scan_type=scan_type.value if scan_type else None,
         )
         return [DataCollection.from_instance(dc) for dc in data_collections]
 
