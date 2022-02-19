@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 import ispyb_graphql
+from ispyb_graphql.api import schema
 
 
 @pytest.fixture()
@@ -25,3 +26,8 @@ async def testdb(monkeypatch):
     SessionLocal = sessionmaker(engine, class_=AsyncSession)
     monkeypatch.setattr(ispyb_graphql.database, "SessionLocal", SessionLocal)
     return config_file
+
+
+@pytest.fixture
+def mock_authentication(mocker):
+    mocker.patch.object(schema.IsAuthenticated, "has_permission", return_value=True)

@@ -4,8 +4,7 @@ from ispyb_graphql.api import schema
 
 
 @pytest.mark.asyncio
-async def test_visit(mocker, testdb):
-
+async def test_visit(mock_authentication, testdb):
     query = """
 query VisitQuery {
   visit(name: "cm14451-1") {
@@ -23,7 +22,6 @@ query VisitQuery {
 }
     """
 
-    mocker.patch.object(schema.IsAuthenticated, "has_permission")
     result = await schema.schema.execute(
         query,
     )
@@ -40,8 +38,7 @@ query VisitQuery {
 
 
 @pytest.mark.asyncio
-async def test_proposal(mocker, testdb):
-
+async def test_proposal(mock_authentication, testdb):
     query = """
 query ProposalQuery {
   proposal(name: "cm14451") {
@@ -65,7 +62,6 @@ query ProposalQuery {
 }
     """
 
-    mocker.patch.object(schema.IsAuthenticated, "has_permission")
     result = await schema.schema.execute(
         query,
     )
@@ -119,8 +115,7 @@ query ProposalQuery {
 
 
 @pytest.mark.asyncio
-async def test_beamline(mocker, testdb):
-
+async def test_beamline(mock_authentication, testdb):
     query = """
 query BeamlineQuery {
   beamline(name: "i03") {
@@ -137,7 +132,6 @@ query BeamlineQuery {
 }
     """
 
-    mocker.patch.object(schema.IsAuthenticated, "has_permission")
     result = await schema.schema.execute(
         query,
     )
