@@ -116,3 +116,44 @@ query ProposalQuery {
             ],
         }
     }
+
+
+@pytest.mark.asyncio
+async def test_beamline(mocker, testdb):
+
+    query = """
+query BeamlineQuery {
+  beamline(name: "i03") {
+    name
+
+    visits {
+      name
+    }
+
+    dataCollections {
+      dcid
+    }
+  }
+}
+    """
+
+    mocker.patch.object(schema.IsAuthenticated, "has_permission")
+    result = await schema.schema.execute(
+        query,
+    )
+
+    assert result.errors is None
+    assert result.data == {
+        "beamline": {
+            "name": "i03",
+            "visits": [{"name": "cm14451-1"}, {"name": "cm14451-2"}],
+            "dataCollections": [
+                {"dcid": 993677},
+                {"dcid": 1002287},
+                {"dcid": 6017405},
+                {"dcid": 1052494},
+                {"dcid": 1052503},
+                {"dcid": 1066786},
+            ],
+        }
+    }
