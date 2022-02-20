@@ -52,7 +52,6 @@ query ProposalQuery {
     samples {
       name
       sampleId
-      crystalId
 
       dataCollections(scanType: ROTATION) {
         dcid
@@ -76,37 +75,31 @@ query ProposalQuery {
                 {
                     "name": "thau8",
                     "sampleId": 398810,
-                    "crystalId": 333301,
                     "dataCollections": [],
                 },
                 {
                     "name": "tlys_jan_4",
                     "sampleId": 374695,
-                    "crystalId": 310037,
                     "dataCollections": [{"dcid": 993677}],
                 },
                 {
                     "name": "thau88",
                     "sampleId": 398816,
-                    "crystalId": 310037,
                     "dataCollections": [],
                 },
                 {
                     "name": "thau99",
                     "sampleId": 398819,
-                    "crystalId": 310037,
                     "dataCollections": [],
                 },
                 {
                     "name": "XPDF-1",
                     "sampleId": 398824,
-                    "crystalId": 333308,
                     "dataCollections": [],
                 },
                 {
                     "name": "XPDF-2",
                     "sampleId": 398827,
-                    "crystalId": 333308,
                     "dataCollections": [],
                 },
             ],
@@ -235,6 +228,14 @@ query SampleQuery {
   sample(sampleId: 374695) {
     name
 
+    container {
+      barcode
+      capacity
+      code
+      containerId
+      containerType
+    }
+
     dataCollections(scanType: ROTATION) {
       dcid
     }
@@ -247,6 +248,17 @@ query SampleQuery {
     )
 
     assert result.errors is None
+    print(result.data)
     assert result.data == {
-        "sample": {"name": "tlys_jan_4", "dataCollections": [{"dcid": 993677}]}
+        "sample": {
+            "name": "tlys_jan_4",
+            "container": {
+                "barcode": None,
+                "capacity": 16,
+                "code": "cm14451-1_i03r-002",
+                "containerId": 33049,
+                "containerType": "Puck",
+            },
+            "dataCollections": [{"dcid": 993677}],
+        }
     }

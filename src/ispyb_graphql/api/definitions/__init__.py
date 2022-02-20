@@ -228,7 +228,9 @@ class Visit:
 class Sample:
     name: str
     sample_id: int
-    crystal_id: int
+
+    crystal_id: strawberry.Private[int]
+    container_id: strawberry.Private[int]
 
     @strawberry.field
     async def data_collections(
@@ -240,12 +242,36 @@ class Sample:
         )
         return [info.context["data_collections_loader"].load(dcid) for dcid in dcids]
 
+    @strawberry.field
+    async def container(self, info) -> "Container":
+        return await info.context["container_loader"].load(self.container_id)
+
     @classmethod
     def from_instance(cls, instance: models.BLSample):
         return cls(
             name=instance.name,
             sample_id=instance.blSampleId,
             crystal_id=instance.crystalId,
+            container_id=instance.containerId,
+        )
+
+
+@strawberry.type
+class Container:
+    capacity: int
+    code: str
+    container_id: int
+    container_type: str
+    barcode: Optional[str]
+
+    @classmethod
+    def from_instance(cls, instance: models.Container):
+        return cls(
+            capacity=instance.capacity,
+            barcode=instance.barcode,
+            code=instance.code,
+            container_id=instance.containerId,
+            container_type=instance.containerType,
         )
 
 
@@ -307,13 +333,20 @@ async def load_merging_statistics(
 
 async def load_data_collections(
     db: Session, dcids: List[strawberry.ID]
-) -> List[List["DataCollection"]]:
+) -> List[List[DataCollection]]:
     data_collections = await crud.get_data_collections(db, dcids)
     return [DataCollection.from_instance(dc) for dc in data_collections]
 
 
 async def load_samples(
     db: Session, sample_ids: List[strawberry.ID]
-) -> List[List["Sample"]]:
+) -> List[List[Sample]]:
     samples = await crud.get_samples(db, sample_ids)
     return [Sample.from_instance(sample) for sample in samples]
+
+
+async def load_containers(
+    db: Session, container_ids: List[strawberry.ID]
+) -> List[List[Container]]:
+    containers = await crud.get_containers(db, container_ids)
+    return [Container.from_instance(container) for container in containers]

@@ -174,13 +174,6 @@ async def get_data_collections(
     return results.scalars().all()
 
 
-async def get_sample(db: Session, sample_id: int) -> BLSample:
-    print(f"Getting {sample_id=}")
-    stmt = select(BLSample).filter(BLSample.blSampleId == sample_id)
-    result = await db.execute(stmt)
-    return result.scalar_one()
-
-
 async def get_samples(db: Session, sample_ids: list[int]) -> list[BLSample]:
     print(f"Getting {sample_ids=}")
     stmt = select(BLSample).filter(BLSample.blSampleId.in_(sample_ids))
@@ -198,6 +191,13 @@ async def get_samples_for_proposal(db: Session, proposal_id: int) -> list[BLSamp
         .join(Proposal, Proposal.proposalId == Protein.proposalId)
         .filter(Proposal.proposalId == proposal_id)
     )
+    result = await db.execute(stmt)
+    return result.scalars().all()
+
+
+async def get_containers(db: Session, container_ids: list[int]) -> list[Container]:
+    print(f"Getting {container_ids=}")
+    stmt = select(Container).filter(Container.containerId.in_(container_ids))
     result = await db.execute(stmt)
     return result.scalars().all()
 

@@ -19,6 +19,7 @@ from ispyb_graphql.api.definitions import (
     Sample,
     Visit,
     load_auto_processings,
+    load_containers,
     load_data_collections,
     load_merging_statistics,
     load_samples,
@@ -123,6 +124,12 @@ class ISPyBGraphQLExtension(Extension):
                 "sample_loader": DataLoader(
                     functools.partial(
                         load_samples,
+                        db,
+                    )
+                ),
+                "container_loader": DataLoader(
+                    functools.partial(
+                        load_containers,
                         db,
                     )
                 ),
