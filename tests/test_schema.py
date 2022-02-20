@@ -226,3 +226,27 @@ query DataCollectionQuery {
             ],
         }
     }
+
+
+@pytest.mark.asyncio
+async def test_sample(mock_authentication, testdb):
+    query = """
+query SampleQuery {
+  sample(sampleId: 374695) {
+    name
+
+    dataCollections(scanType: ROTATION) {
+      dcid
+    }
+  }
+}
+    """
+
+    result = await schema.schema.execute(
+        query,
+    )
+
+    assert result.errors is None
+    assert result.data == {
+        "sample": {"name": "tlys_jan_4", "dataCollections": [{"dcid": 993677}]}
+    }

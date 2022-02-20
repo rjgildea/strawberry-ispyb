@@ -16,6 +16,7 @@ from ispyb_graphql.api.definitions import (
     Beamline,
     DataCollection,
     Proposal,
+    Sample,
     Visit,
     load_auto_processings,
     load_data_collections,
@@ -83,6 +84,14 @@ class Query:
         dcid: strawberry.ID,
     ) -> DataCollection:
         return await info.context["data_collections_loader"].load(dcid)
+
+    @strawberry.field
+    async def sample(
+        self,
+        info,
+        sample_id: strawberry.ID,
+    ) -> Sample:
+        return await info.context["sample_loader"].load(sample_id)
 
 
 class ISPyBGraphQLExtension(Extension):
