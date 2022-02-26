@@ -1,13 +1,15 @@
 # from __future__ import annotations
 
+import asyncio
 import datetime
 import enum
 import os
 import pathlib
-from typing import List, NewType, Optional
+from typing import Generic, List, NewType, Optional, TypeVar
 
 import strawberry
 from sqlalchemy.orm import Session
+from strawberry.arguments import UNSET
 
 from ispyb_graphql import crud, models
 
@@ -16,6 +18,48 @@ Path = strawberry.scalar(
     serialize=lambda v: os.fspath(v),
     parse_value=lambda v: pathlib.Path(v),
 )
+
+
+GenericType = TypeVar("GenericType")
+
+
+@strawberry.type
+class Connection(Generic[GenericType]):
+    """Represents a paginated relationship between two entities
+
+    This pattern is used when the relationship itself has attributes.
+    In a Facebook-based domain example, a friendship between two people
+    would be a connection that might have a `friendshipStartTime`
+    """
+
+    page_info: "PageInfo"
+    edges: List["Edge[GenericType]"]
+
+
+@strawberry.type
+class PageInfo:
+    """Pagination context to navigate objects with cursor-based pagination
+
+    Instead of classic offset pagination via `page` and `limit` parameters,
+    here we have a cursor of the last object and we fetch items starting from that one
+
+    Read more at:
+        - https://graphql.org/learn/pagination/#pagination-and-edges
+        - https://relay.dev/graphql/connections.htm
+    """
+
+    has_next_page: bool
+    has_previous_page: bool
+    start_cursor: Optional[str]
+    end_cursor: Optional[str]
+
+
+@strawberry.type
+class Edge(Generic[GenericType]):
+    """An edge may contain additional information of the relationship. This is the trivial case"""
+
+    node: GenericType
+    cursor: strawberry.ID
 
 
 @strawberry.type
@@ -169,16 +213,38 @@ class Proposal:
 
     @strawberry.field
     async def data_collections(
-        self, info, scan_type: Optional[ScanType] = None
-    ) -> List[DataCollection]:
+        self,
+        info,
+        scan_type: ScanType = None,
+        first: int = 10,
+        after: Optional[strawberry.ID] = UNSET,
+    ) -> Connection[DataCollection]:
+
+        after = after if after is not UNSET else None
         db = info.context["db"]
         dcids = await crud.get_dcids_for_proposal(
-            db, self.proposal_id, scan_type.value if scan_type else None
+            db,
+            self.proposal_id,
+            scan_type=scan_type.value if scan_type else None,
+            after=after,
+            limit=first + 1,
         )
-        data_collections = [
-            info.context["data_collections_loader"].load(dcid) for dcid in dcids
-        ]
-        return data_collections
+        data_collections = await asyncio.gather(
+            *(info.context["data_collections_loader"].load(dcid) for dcid in dcids)
+        )
+
+        edges = [Edge(node=dc, cursor=dc.dcid) for dc in data_collections]
+        return Connection(
+            page_info=PageInfo(
+                has_previous_page=False,
+                has_next_page=len(data_collections) > first,
+                start_cursor=edges[0].cursor if edges else None,
+                end_cursor=edges[-2].cursor if len(edges) > 1 else None,
+            ),
+            edges=edges[
+                :-1
+            ],  # exclude last one as it was fetched to know if there is a next page
+        )
 
     @strawberry.field
     async def samples(self, info) -> List["Sample"]:
@@ -203,16 +269,38 @@ class Visit:
 
     @strawberry.field
     async def data_collections(
-        self, info, scan_type: ScanType = None
-    ) -> List[DataCollection]:
+        self,
+        info,
+        scan_type: ScanType = None,
+        first: int = 10,
+        after: Optional[strawberry.ID] = UNSET,
+    ) -> Connection[DataCollection]:
+
+        after = after if after is not UNSET else None
         db = info.context["db"]
         dcids = await crud.get_dcids_for_blsession(
-            db, self.session_id, scan_type.value if scan_type else None
+            db,
+            self.session_id,
+            scan_type.value if scan_type else None,
+            after=after,
+            limit=first + 1,
         )
-        data_collections = [
-            info.context["data_collections_loader"].load(dcid) for dcid in dcids
-        ]
-        return data_collections
+        data_collections = await asyncio.gather(
+            *(info.context["data_collections_loader"].load(dcid) for dcid in dcids)
+        )
+
+        edges = [Edge(node=dc, cursor=dc.dcid) for dc in data_collections]
+        return Connection(
+            page_info=PageInfo(
+                has_previous_page=False,
+                has_next_page=len(data_collections) > first,
+                start_cursor=edges[0].cursor if edges else None,
+                end_cursor=edges[-2].cursor if len(edges) > 1 else None,
+            ),
+            edges=edges[
+                :-1
+            ],  # exclude last one as it was fetched to know if there is a next page
+        )
 
     @classmethod
     def from_instance(cls, instance: models.BLSession):
@@ -234,13 +322,38 @@ class Sample:
 
     @strawberry.field
     async def data_collections(
-        self, info, scan_type: ScanType = None
-    ) -> List[DataCollection]:
+        self,
+        info,
+        scan_type: ScanType = None,
+        first: int = 10,
+        after: Optional[strawberry.ID] = UNSET,
+    ) -> Connection[DataCollection]:
+
+        after = after if after is not UNSET else None
         db = info.context["db"]
         dcids = await crud.get_dcids_for_sample(
-            db, self.sample_id, scan_type=scan_type.value if scan_type else None
+            db,
+            self.sample_id,
+            scan_type.value if scan_type else None,
+            after=after,
+            limit=first + 1,
         )
-        return [info.context["data_collections_loader"].load(dcid) for dcid in dcids]
+        data_collections = await asyncio.gather(
+            *(info.context["data_collections_loader"].load(dcid) for dcid in dcids)
+        )
+
+        edges = [Edge(node=dc, cursor=dc.dcid) for dc in data_collections]
+        return Connection(
+            page_info=PageInfo(
+                has_previous_page=False,
+                has_next_page=len(data_collections) > first,
+                start_cursor=edges[0].cursor if edges else None,
+                end_cursor=edges[-2].cursor if len(edges) > 1 else None,
+            ),
+            edges=edges[
+                :-1
+            ],  # exclude last one as it was fetched to know if there is a next page
+        )
 
     @strawberry.field
     async def container(self, info) -> "Container":
@@ -299,7 +412,11 @@ class Beamline:
         start_time: datetime.datetime = None,
         end_time: datetime.datetime = datetime.datetime.now(),
         scan_type: ScanType = None,
-    ) -> List[DataCollection]:
+        first: int = 10,
+        after: Optional[strawberry.ID] = UNSET,
+    ) -> Connection[DataCollection]:
+
+        after = after if after is not UNSET else None
         db = info.context["db"]
         data_collections = await crud.get_data_collections_for_beamline(
             db,
@@ -307,8 +424,24 @@ class Beamline:
             start_time=start_time,
             end_time=end_time,
             scan_type=scan_type.value if scan_type else None,
+            after=after,
+            limit=first + 1,
         )
-        return [DataCollection.from_instance(dc) for dc in data_collections]
+        edges = [
+            Edge(node=DataCollection.from_instance(dc), cursor=dc.dataCollectionId)
+            for dc in data_collections
+        ]
+        return Connection(
+            page_info=PageInfo(
+                has_previous_page=False,
+                has_next_page=len(data_collections) > first,
+                start_cursor=edges[0].cursor if edges else None,
+                end_cursor=edges[-2].cursor if len(edges) > 1 else None,
+            ),
+            edges=edges[
+                :-1
+            ],  # exclude last one as it was fetched to know if there is a next page
+        )
 
 
 async def load_auto_processings(

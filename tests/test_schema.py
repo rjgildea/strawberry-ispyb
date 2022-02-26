@@ -12,11 +12,19 @@ query VisitQuery {
     sessionId
 
     grid_scans: dataCollections(scanType: GRID) {
-      dcid
+      edges {
+        node {
+          dcid
+        }
+      }
     }
 
     rotation_scans: dataCollections(scanType: ROTATION) {
-      dcid
+      edges {
+        node {
+          dcid
+        }
+      }
     }
   }
 }
@@ -31,8 +39,8 @@ query VisitQuery {
         "visit": {
             "name": "cm14451-1",
             "sessionId": 55167,
-            "grid_scans": [{"dcid": 6017405}],
-            "rotation_scans": [{"dcid": 993677}, {"dcid": 1002287}],
+            "grid_scans": {"edges": []},
+            "rotation_scans": {"edges": [{"node": {"dcid": 993677}}]},
         }
     }
 
@@ -46,7 +54,11 @@ query ProposalQuery {
     proposalId
 
     grid_scans: dataCollections(scanType: GRID) {
-      dcid
+      edges {
+        node {
+          dcid
+        }
+      }
     }
 
     samples {
@@ -54,7 +66,11 @@ query ProposalQuery {
       sampleId
 
       dataCollections(scanType: ROTATION) {
-        dcid
+        edges {
+          node {
+            dcid
+          }
+        }
       }
     }
   }
@@ -70,37 +86,33 @@ query ProposalQuery {
         "proposal": {
             "name": "cm14451",
             "proposalId": 37027,
-            "grid_scans": [{"dcid": 6017405}],
+            "grid_scans": {"edges": []},
             "samples": [
-                {
-                    "name": "thau8",
-                    "sampleId": 398810,
-                    "dataCollections": [],
-                },
+                {"name": "thau8", "sampleId": 398810, "dataCollections": {"edges": []}},
                 {
                     "name": "tlys_jan_4",
                     "sampleId": 374695,
-                    "dataCollections": [{"dcid": 993677}],
+                    "dataCollections": {"edges": []},
                 },
                 {
                     "name": "thau88",
                     "sampleId": 398816,
-                    "dataCollections": [],
+                    "dataCollections": {"edges": []},
                 },
                 {
                     "name": "thau99",
                     "sampleId": 398819,
-                    "dataCollections": [],
+                    "dataCollections": {"edges": []},
                 },
                 {
                     "name": "XPDF-1",
                     "sampleId": 398824,
-                    "dataCollections": [],
+                    "dataCollections": {"edges": []},
                 },
                 {
                     "name": "XPDF-2",
                     "sampleId": 398827,
-                    "dataCollections": [],
+                    "dataCollections": {"edges": []},
                 },
             ],
         }
@@ -119,7 +131,11 @@ query BeamlineQuery {
     }
 
     dataCollections {
-      dcid
+      edges {
+        node {
+          dcid
+        }
+      }
     }
   }
 }
@@ -134,14 +150,15 @@ query BeamlineQuery {
         "beamline": {
             "name": "i03",
             "visits": [{"name": "cm14451-1"}, {"name": "cm14451-2"}],
-            "dataCollections": [
-                {"dcid": 993677},
-                {"dcid": 1002287},
-                {"dcid": 6017405},
-                {"dcid": 1052494},
-                {"dcid": 1052503},
-                {"dcid": 1066786},
-            ],
+            "dataCollections": {
+                "edges": [
+                    {"node": {"dcid": 993677}},
+                    {"node": {"dcid": 1002287}},
+                    {"node": {"dcid": 6017405}},
+                    {"node": {"dcid": 1052494}},
+                    {"node": {"dcid": 1052503}},
+                ]
+            },
         }
     }
 
@@ -237,7 +254,11 @@ query SampleQuery {
     }
 
     dataCollections(scanType: ROTATION) {
-      dcid
+      edges {
+        node {
+          dcid
+        }
+      }
     }
   }
 }
@@ -248,7 +269,6 @@ query SampleQuery {
     )
 
     assert result.errors is None
-    print(result.data)
     assert result.data == {
         "sample": {
             "name": "tlys_jan_4",
@@ -259,6 +279,6 @@ query SampleQuery {
                 "containerId": 33049,
                 "containerType": "Puck",
             },
-            "dataCollections": [{"dcid": 993677}],
+            "dataCollections": {"edges": []},
         }
     }

@@ -4,6 +4,7 @@ import datetime
 import itertools
 import logging
 import re
+from typing import Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload, load_only
@@ -101,6 +102,8 @@ async def get_dcids_for_proposal(
     db: Session,
     proposal_id: int,
     scan_type: str = None,
+    limit: Optional[int] = None,
+    after: Optional[int] = None,
 ) -> list[int]:
     print(f"Getting dcids for {proposal_id=}")
     stmt = (
@@ -114,6 +117,10 @@ async def get_dcids_for_proposal(
         stmt = stmt.join(
             GridInfo, GridInfo.dataCollectionId == DataCollection.dataCollectionId
         )
+    if after:
+        stmt = stmt.filter(DataCollection.dataCollectionId > after)
+    if limit:
+        stmt = stmt.limit(limit)
     result = await db.execute(stmt)
     return result.scalars().all()
 
@@ -122,6 +129,8 @@ async def get_dcids_for_blsession(
     db: Session,
     session_id: int,
     scan_type: str = None,
+    limit: Optional[int] = None,
+    after: Optional[int] = None,
 ) -> list[int]:
     print(f"Getting data collections for {session_id=}, {scan_type=}")
     stmt = (
@@ -135,6 +144,10 @@ async def get_dcids_for_blsession(
         stmt = stmt.join(
             GridInfo, GridInfo.dataCollectionId == DataCollection.dataCollectionId
         )
+    if after:
+        stmt = stmt.filter(DataCollection.dataCollectionId > after)
+    if limit:
+        stmt = stmt.limit(limit)
     result = await db.execute(stmt)
     return result.scalars().all()
 
@@ -143,6 +156,8 @@ async def get_dcids_for_sample(
     db: Session,
     sample_id: int,
     scan_type: str = None,
+    limit: Optional[int] = None,
+    after: Optional[int] = None,
 ) -> list[int]:
     print(f"Getting data collections for {sample_id=}, {scan_type=}")
     stmt = (
@@ -156,6 +171,10 @@ async def get_dcids_for_sample(
         stmt = stmt.join(
             GridInfo, GridInfo.dataCollectionId == DataCollection.dataCollectionId
         )
+    if after:
+        stmt = stmt.filter(DataCollection.dataCollectionId > after)
+    if limit:
+        stmt = stmt.limit(limit)
     result = await db.execute(stmt)
     return result.scalars().all()
 
@@ -326,6 +345,8 @@ async def get_data_collections_for_beamline(
     start_time: datetime.datetime = None,
     end_time: datetime.datetime = None,
     scan_type: str = None,
+    limit: Optional[int] = None,
+    after: Optional[int] = None,
 ) -> list[BLSession]:
     print(f"Getting data collections for {beamline=}")
     stmt = (
@@ -346,5 +367,9 @@ async def get_data_collections_for_beamline(
         stmt = stmt.join(
             GridInfo, GridInfo.dataCollectionId == DataCollection.dataCollectionId
         )
+    if after:
+        stmt = stmt.filter(DataCollection.dataCollectionId > after)
+    if limit:
+        stmt = stmt.limit(limit)
     result = await db.execute(stmt)
     return result.scalars().all()
