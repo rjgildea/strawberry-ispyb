@@ -8,6 +8,7 @@ from fastapi import Depends, FastAPI
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.requests import Request
+from starlette_prometheus import PrometheusMiddleware, metrics
 from strawberry.fastapi import GraphQLRouter
 
 from ispyb_graphql import config
@@ -16,6 +17,8 @@ from ispyb_graphql.api.schema import schema
 app = FastAPI()
 
 app.add_middleware(SessionMiddleware, secret_key="!secret")
+app.add_middleware(PrometheusMiddleware)
+app.add_route("/metrics/", metrics)
 
 
 def get_cas_client(

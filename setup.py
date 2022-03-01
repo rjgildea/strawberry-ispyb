@@ -17,6 +17,7 @@ setup(
         "itsdangerous",
         "python-cas",
         "sqlalchemy[asyncio]",
+        "starlette-prometheus",
         "strawberry-graphql[fastapi]",
         "uvicorn[standard]",
     ],
