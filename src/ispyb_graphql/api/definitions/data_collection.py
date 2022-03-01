@@ -4,7 +4,7 @@ import datetime
 import enum
 import os
 import pathlib
-from typing import TYPE_CHECKING, List, NewType, Optional
+from typing import TYPE_CHECKING, NewType, Optional
 
 import strawberry
 
@@ -74,7 +74,7 @@ class DataCollection:
         )
 
     @strawberry.field
-    async def auto_processings(self, info) -> List[AutoProcessingResult]:
+    async def auto_processings(self, info) -> list[AutoProcessingResult]:
         return await info.context["auto_processing_loader"].load(self.dcid)
 
     @strawberry.field

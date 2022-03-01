@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Generic, List, Optional, TypeVar
+from typing import Generic, Optional, TypeVar
 
 import strawberry
 
@@ -17,7 +17,7 @@ class Connection(Generic[GenericType]):
     """
 
     page_info: PageInfo
-    edges: List[Edge[GenericType]]
+    edges: list[Edge[GenericType]]
 
 
 @strawberry.type

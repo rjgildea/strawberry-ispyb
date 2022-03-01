@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import List
-
 import strawberry
 from sqlalchemy.orm import Session
 
@@ -28,8 +26,8 @@ __all__ = [
 
 
 async def load_auto_processings(
-    db: Session, dcids: List[strawberry.ID]
-) -> List[List[AutoProcessingResult]]:
+    db: Session, dcids: list[strawberry.ID]
+) -> list[list[AutoProcessingResult]]:
     result = await crud.get_auto_processing_results_for_dcids(db, dcids)
     return [
         [AutoProcessingResult.from_instance(ap) for ap in auto_processings]
@@ -38,8 +36,8 @@ async def load_auto_processings(
 
 
 async def load_merging_statistics(
-    db: Session, auto_proc_ids: List[strawberry.ID]
-) -> List[List[MergingStatistics]]:
+    db: Session, auto_proc_ids: list[strawberry.ID]
+) -> list[list[MergingStatistics]]:
     result = await crud.get_auto_proc_scaling_statistics_for_apids(db, auto_proc_ids)
     return [
         [MergingStatistics.from_instance(shell_stats) for shell_stats in statistics]
@@ -48,21 +46,21 @@ async def load_merging_statistics(
 
 
 async def load_containers(
-    db: Session, container_ids: List[strawberry.ID]
-) -> List[List[Container]]:
+    db: Session, container_ids: list[strawberry.ID]
+) -> list[list[Container]]:
     containers = await crud.get_containers(db, container_ids)
     return [Container.from_instance(container) for container in containers]
 
 
 async def load_samples(
-    db: Session, sample_ids: List[strawberry.ID]
-) -> List[List[Sample]]:
+    db: Session, sample_ids: list[strawberry.ID]
+) -> list[list[Sample]]:
     samples = await crud.get_samples(db, sample_ids)
     return [Sample.from_instance(sample) for sample in samples]
 
 
 async def load_data_collections(
-    db: Session, dcids: List[strawberry.ID]
-) -> List[List[DataCollection]]:
+    db: Session, dcids: list[strawberry.ID]
+) -> list[list[DataCollection]]:
     data_collections = await crud.get_data_collections(db, dcids)
     return [DataCollection.from_instance(dc) for dc in data_collections]
