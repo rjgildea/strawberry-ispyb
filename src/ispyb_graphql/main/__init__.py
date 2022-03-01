@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-import functools
 import typing
 
-from cas import CASClient as _CASClient
+import pydantic
+from cas import CASClient
 from fastapi import Depends, FastAPI
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.requests import Request
 from strawberry.fastapi import GraphQLRouter
 
+from ispyb_graphql import config
 from ispyb_graphql.api.schema import schema
 
 app = FastAPI()
@@ -17,9 +18,15 @@ app = FastAPI()
 app.add_middleware(SessionMiddleware, secret_key="!secret")
 
 
-CASClient = functools.partial(
-    _CASClient, version=3, server_url="https://auth.diamond.ac.uk/cas/"
-)
+def get_cas_client(
+    server_url: pydantic.AnyUrl,
+    service_url: pydantic.AnyUrl,
+):
+    return CASClient(
+        version=3,
+        server_url=server_url,
+        service_url=service_url,
+    )
 
 
 @app.get("/")
@@ -42,10 +49,14 @@ def login(
     request: Request,
     next: typing.Optional[str] = None,
     ticket: typing.Optional[str] = None,
+    settings: config.Settings = Depends(config.get_settings),
 ):
     if not next:
         next = "profile"
-    cas_client = CASClient(service_url=request.url_for("login") + f"?next={next}")
+    cas_client = get_cas_client(
+        server_url=settings.cas_server_url,
+        service_url=request.url_for("login") + f"?next={next}",
+    )
     if request.session.get("user", None):
         # Already logged in
         return RedirectResponse(request.url_for("profile"))
@@ -76,10 +87,13 @@ def login(
 
 
 @app.get("/logout")
-def logout(request: Request):
+def logout(request: Request, settings: config.Settings = Depends(config.get_settings)):
     redirect_url = request.url_for("logout_callback")
     request.session.pop("user", None)
-    cas_client = CASClient(service_url=request.url_for("logout"))
+    cas_client = get_cas_client(
+        server_url=settings.cas_server_url,
+        service_url=request.url_for("logout"),
+    )
     cas_logout_url = cas_client.get_logout_url(redirect_url)
     print("CAS logout URL: %s", cas_logout_url)
     return RedirectResponse(cas_logout_url)
