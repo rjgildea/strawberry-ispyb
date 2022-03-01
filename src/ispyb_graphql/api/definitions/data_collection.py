@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, List, NewType, Optional
 
 import strawberry
 
+import ispyb_graphql
 from ispyb_graphql import models
 
 from .auto_processing import AutoProcessingResult
@@ -77,6 +78,10 @@ class DataCollection:
         return await info.context["auto_processing_loader"].load(self.dcid)
 
     @strawberry.field
-    async def sample(self, info) -> Optional[strawberry.LazyType["Sample", "sample"]]:
+    async def sample(
+        self, info
+    ) -> Optional[
+        strawberry.LazyType["Sample", "ispyb_graphql.api.definitions.sample"]
+    ]:
         if self.sample_id is not None:
             return await info.context["sample_loader"].load(self.sample_id)
