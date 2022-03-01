@@ -30,4 +30,9 @@ async def testdb(monkeypatch):
 
 @pytest.fixture
 def mock_authentication(mocker):
-    mocker.patch.object(schema.IsAuthenticated, "has_permission", return_value=True)
+    mocker.patch.object(
+        schema.IsAuthenticatedForProposal, "has_permission", return_value=True
+    )
+    mocker.patch.object(
+        schema.IsAuthenticatedForVisit, "has_permission", return_value=True
+    )

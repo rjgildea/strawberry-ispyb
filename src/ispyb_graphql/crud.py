@@ -22,10 +22,15 @@ from ispyb_graphql.models import (
     Crystal,
     DataCollection,
     GridInfo,
+    Permission,
     Person,
     Proposal,
     ProposalHasPerson,
     Protein,
+    SessionHasPerson,
+    UserGroup,
+    t_UserGroup_has_Permission,
+    t_UserGroup_has_Person,
 )
 
 logger = logging.getLogger(__name__)
@@ -297,8 +302,6 @@ async def get_auto_proc_scaling_statistics_for_apids(
 
 async def proposal_has_person(db: Session, name: str, fedid: str) -> bool:
     code, number = proposal_code_and_number_from_name(name)
-    print(f"{code=}")
-    print(f"{number=}")
     stmt = (
         select(func.count(Person.personId))
         .join(ProposalHasPerson, ProposalHasPerson.personId == Person.personId)
@@ -308,13 +311,45 @@ async def proposal_has_person(db: Session, name: str, fedid: str) -> bool:
         .filter(Person.login == fedid)
     )
     count = await db.scalar(stmt)
-    print(f"{count=}")
+    return count > 0
 
-    return True
-    # result = await db.execute(stmt)
-    if count:
-        return True
-    return False
+
+async def session_has_person(db: Session, name: str, fedid: str) -> bool:
+    code, number, visit_number = proposal_code_number_and_visit_number_from_name(name)
+    stmt = (
+        select(func.count(Person.personId))
+        .join(SessionHasPerson, SessionHasPerson.personId == Person.personId)
+        .join(BLSession, BLSession.sessionId == SessionHasPerson.sessionId)
+        .join(Proposal, Proposal.proposalId == BLSession.proposalId)
+        .filter(Proposal.proposalCode == code)
+        .filter(Proposal.proposalNumber == number)
+        .filter(BLSession.visit_number == visit_number)
+        .filter(Person.login == fedid)
+    )
+    count = await db.scalar(stmt)
+    return count > 0
+
+
+async def get_permissions_and_user_groups(db: Session, fedid: str) -> bool:
+    stmt = (
+        select(Permission, UserGroup)
+        .join(
+            t_UserGroup_has_Permission,
+            t_UserGroup_has_Permission.c.permissionId == Permission.permissionId,
+        )
+        .join(
+            UserGroup, UserGroup.userGroupId == t_UserGroup_has_Permission.c.userGroupId
+        )
+        .join(
+            t_UserGroup_has_Person,
+            t_UserGroup_has_Person.c.userGroupId
+            == t_UserGroup_has_Permission.c.userGroupId,
+        )
+        .join(Person, Person.personId == t_UserGroup_has_Person.c.personId)
+        .filter(Person.login == fedid)
+    )
+    result = await db.execute(stmt)
+    return result.all()
 
 
 async def get_blsessions_for_beamline(
@@ -337,6 +372,15 @@ async def get_blsessions_for_beamline(
         stmt = stmt.filter(BLSession.startDate <= end_time)
     result = await db.execute(stmt)
     return result.scalars().all()
+
+
+async def get_beamline_for_visit(
+    db: Session,
+    visit: str,
+) -> str:
+    print(f"Getting beamline for visit {visit=}")
+    blsession = await get_blsession(db, visit)
+    return blsession.name
 
 
 async def get_data_collections_for_beamline(

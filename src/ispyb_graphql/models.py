@@ -12,10 +12,15 @@ from ispyb.sqlalchemy import (
     Crystal,
     DataCollection,
     GridInfo,
+    Permission,
     Person,
     Proposal,
     ProposalHasPerson,
     Protein,
+    SessionHasPerson,
+    UserGroup,
+    t_UserGroup_has_Permission,
+    t_UserGroup_has_Person,
 )
 
 __all__ = [
@@ -31,10 +36,15 @@ __all__ = [
     "Crystal",
     "DataCollection",
     "GridInfo",
+    "Permission",
     "Person",
     "Proposal",
     "ProposalHasPerson",
     "Protein",
+    "SessionHasPerson",
+    "UserGroup",
+    "t_UserGroup_has_Permission",
+    "t_UserGroup_has_Person",
 ]
 
 
