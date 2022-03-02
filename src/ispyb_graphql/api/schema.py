@@ -1,18 +1,15 @@
 from __future__ import annotations
 
 import functools
-import typing
 
 import strawberry
-from fastapi import Request, WebSocket
-from fastapi.responses import HTMLResponse
 from strawberry.dataloader import DataLoader
 from strawberry.extensions import Extension
-from strawberry.permission import BasePermission
-from strawberry.types import Info
 
 from ispyb_graphql import crud
-from ispyb_graphql.api.definitions import (
+from ispyb_graphql.database import get_db_session
+
+from .definitions import (
     Beamline,
     DataCollection,
     Proposal,
@@ -24,71 +21,11 @@ from ispyb_graphql.api.definitions import (
     load_merging_statistics,
     load_samples,
 )
-from ispyb_graphql.database import get_db_session
-
-
-class IsAuthenticatedForProposal(BasePermission):
-    message = "User is not authenticated"
-
-    async def has_permission(
-        self, source: typing.Any, info: Info, *, name: str, **kwargs
-    ) -> bool:
-        request: typing.Union[Request, WebSocket] = info.context["request"]
-
-        user = request.session.get("user")
-        if not user:
-            return HTMLResponse(
-                'Login required. <a href="/login">Login</a>', status_code=403
-            )
-
-        db = info.context["db"]
-        return True
-        return await crud.proposal_has_person(db, name, user["user"])
-
-
-BL_TYPES = {
-    "i02": "mx",
-    "i02-1": "mx",
-    "i02-2": "mx",
-    "i03": "mx",
-    "i04": "mx",
-    "i04-1": "mx",
-    "i23": "mx",
-    "i24": "mx",
-}
-
-
-class IsAuthenticatedForVisit(BasePermission):
-    message = "User is not authenticated"
-
-    async def has_permission(
-        self, source: typing.Any, info: Info, *, name: str, **kwargs
-    ) -> bool:
-        request: typing.Union[Request, WebSocket] = info.context["request"]
-
-        user = request.session.get("user")
-        print(f"{user=}")
-        if not user:
-            return False
-
-        db = info.context["db"]
-
-        result = await crud.get_permissions_and_user_groups(db, user["user"])
-        for p, ug in result:
-            print(p.type, ug.name)
-
-        admin_ptype = set(
-            p.type.split("_")[0] for p, _ in result if p.type.endswith("_admin")
-        )
-        print(f"{admin_ptype=}")
-
-        blsession = await crud.get_blsession(db, name)
-        bl_type = BL_TYPES.get(blsession.beamLineName)
-        print(f"{bl_type=}")
-        if bl_type and bl_type in admin_ptype:
-            return True
-
-        return await crud.session_has_person(db, name, user["user"])
+from .permissions import (
+    IsAuthenticatedForBeamline,
+    IsAuthenticatedForProposal,
+    IsAuthenticatedForVisit,
+)
 
 
 @strawberry.type
@@ -113,7 +50,7 @@ class Query:
         session = await crud.get_blsession(db, name=name)
         return Visit.from_instance(session)
 
-    @strawberry.field
+    @strawberry.field(permission_classes=[IsAuthenticatedForBeamline])
     async def beamline(
         self,
         info,

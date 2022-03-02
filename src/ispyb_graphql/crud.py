@@ -62,6 +62,18 @@ DATA_COLLECTION_COLUMNS = (
 )
 
 
+BL_TYPES = {
+    "i02": "mx",
+    "i02-1": "mx",
+    "i02-2": "mx",
+    "i03": "mx",
+    "i04": "mx",
+    "i04-1": "mx",
+    "i23": "mx",
+    "i24": "mx",
+}
+
+
 def proposal_code_and_number_from_name(name: str) -> tuple[str, int]:
     m = re_proposal.match(name)
     assert m
@@ -350,6 +362,20 @@ async def get_permissions_and_user_groups(db: Session, fedid: str) -> bool:
     )
     result = await db.execute(stmt)
     return result.all()
+
+
+async def user_is_admin_for_beamline(db: Session, fedid: str, beamline: str) -> bool:
+    result = await get_permissions_and_user_groups(db, fedid)
+    for p, ug in result:
+        print(p.type, ug.name)
+
+    admin_ptype = set(
+        p.type.split("_")[0] for p, _ in result if p.type.endswith("_admin")
+    )
+    bl_type = BL_TYPES.get(beamline)
+    if bl_type and bl_type in admin_ptype:
+        return True
+    return False
 
 
 async def get_blsessions_for_beamline(

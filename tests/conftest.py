@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 import ispyb_graphql
-from ispyb_graphql.api import schema
+from ispyb_graphql.api import permissions
 
 
 @pytest.fixture()
@@ -31,8 +31,11 @@ async def testdb(monkeypatch):
 @pytest.fixture
 def mock_authentication(mocker):
     mocker.patch.object(
-        schema.IsAuthenticatedForProposal, "has_permission", return_value=True
+        permissions.IsAuthenticatedForProposal, "has_permission", return_value=True
     )
     mocker.patch.object(
-        schema.IsAuthenticatedForVisit, "has_permission", return_value=True
+        permissions.IsAuthenticatedForVisit, "has_permission", return_value=True
+    )
+    mocker.patch.object(
+        permissions.IsAuthenticatedForBeamline, "has_permission", return_value=True
     )
